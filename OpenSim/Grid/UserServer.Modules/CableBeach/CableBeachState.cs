@@ -153,9 +153,11 @@ namespace OpenSim.Grid.UserServer.Modules
         /// capability</summary>
         public const int SEED_CAP_TIMEOUT = 1000 * 30;
 
+        const string ROOT_TEMPLATE_FILE = "webtemplates/userserver_homepage.tpl";
         const string LOGIN_TEMPLATE_FILE = "webtemplates/userserver_cablebeachlogin.tpl";
         const string LOGIN_SUCCESS_TEMPLATE_FILE = "webtemplates/userserver_cablebeachloginsuccess.tpl";
         const string PROVIDER_LOGIN_TEMPLATE_FILE = "webtemplates/userserver_cablebeachproviderlogin.tpl";
+        const string PROVIDER_DIRECTED_LOGIN_TEMPLATE_FILE = "webtemplates/userserver_cablebeachproviderdirectedlogin.tpl";
         const string PROVIDER_USER_TEMPLATE_FILE = "webtemplates/userserver_cablebeachprovideruser.tpl";
 
         #region Service Requirements
@@ -213,6 +215,9 @@ namespace OpenSim.Grid.UserServer.Modules
 
         /// <summary>A reference to available UserServer services</summary>
         public static CableBeachLoginService LoginService;
+
+        /// <summary>A helper property to get at the user server URL</summary>
+        public static Uri UserServerUrl { get { return LoginService.m_config.AuthUrl; } }
 
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -524,8 +529,6 @@ namespace OpenSim.Grid.UserServer.Modules
                             OAuthConsumer consumer = new OAuthConsumer(OpenAuthHelper.CreateServiceProviderDescription(currentService), CableBeachState.OAuthTokenManager);
 
                             Dictionary<string, string> extraData = new Dictionary<string, string>();
-                            extraData["cb_identity"] = stateData.UserIdentity.ToString();
-                            extraData["cb_auth_method"] = stateData.AuthMethod;
                             extraData["cb_capabilities"] = capRequest;
 
                             UserAuthorizationRequest authorizationRequest = consumer.PrepareRequestUserAuthorization(
@@ -683,9 +686,36 @@ namespace OpenSim.Grid.UserServer.Modules
             return false;
         }
 
+        /// <summary>
+        /// Tries to retrieve a profile matching the given avatar name
+        /// </summary>
+        /// <param name="firstName">Avatar first name</param>
+        /// <param name="lastName">Avatar last name</param>
+        /// <param name="profile">Profile data for the avatar</param>
+        /// <returns>True if the lookup was successful, otherwise false</returns>
+        public static bool TryGetProfile(string firstName, string lastName, out UserProfileData profile)
+        {
+            profile = LoginService.GetTheUser(firstName, lastName);
+            return (profile != null);
+        }
+
         #endregion Helper Methods
 
         #region HTML Templates
+
+        public static void SendRootTemplate(OSHttpResponse httpResponse, Uri openidServerUrl)
+        {
+            string output = null;
+            Dictionary<string, object> variables = new Dictionary<string, object>();
+            variables["openid_server_url"] = openidServerUrl.ToString();
+
+            try { output = WebTemplates.Render(ROOT_TEMPLATE_FILE, variables); }
+            catch (Exception) { }
+            if (output == null) { output = "Failed to render template " + ROOT_TEMPLATE_FILE; }
+
+            httpResponse.ContentType = "text/html";
+            OpenAuthHelper.AddToBody(httpResponse, output);
+        }
 
         public static void SendLoginTemplate(OSHttpResponse httpResponse, string infoMessage, string errorMessage)
         {
@@ -696,7 +726,7 @@ namespace OpenSim.Grid.UserServer.Modules
             variables["message"] = infoMessage ?? String.Empty;
             variables["error"] = errorMessage ?? String.Empty;
 
-            try { output = CableBeachState.WebTemplates.Render(LOGIN_TEMPLATE_FILE, variables); }
+            try { output = WebTemplates.Render(LOGIN_TEMPLATE_FILE, variables); }
             catch (Exception) { }
             if (output == null) { output = "Failed to render template " + LOGIN_TEMPLATE_FILE; }
 
@@ -754,6 +784,37 @@ namespace OpenSim.Grid.UserServer.Modules
             try { output = CableBeachState.WebTemplates.Render(PROVIDER_LOGIN_TEMPLATE_FILE, variables); }
             catch (Exception) { }
             if (output == null) { output = "Failed to render template " + PROVIDER_LOGIN_TEMPLATE_FILE; }
+
+            httpResponse.ContentType = "text/html";
+            OpenAuthHelper.AddToBody(httpResponse, output);
+        }
+
+        public static void SendProviderDirectedLoginTemplate(OSHttpResponse httpResponse, string realm, OSHttpRequest httpRequest, NameValueCollection postData)
+        {
+            // Convert all of the query parameters to form input fields
+            StringBuilder formHiddenFields = new StringBuilder();
+            Dictionary<string, string> queryValues = OpenAuthHelper.QueryStringToDictionary(httpRequest.Url.Query);
+            foreach (KeyValuePair<string, string> entry in queryValues)
+                formHiddenFields.AppendFormat("<input name=\"{0}\" type=\"hidden\" value=\"{1}\"/>", entry.Key, entry.Value);
+
+            if (postData != null)
+            {
+                // Convert all of the POST parameters to form input fields
+                foreach (string key in postData.Keys)
+                {
+                    if (key != "first" && key != "last" && key != "pass")
+                        formHiddenFields.AppendFormat("<input name=\"{0}\" type=\"hidden\" value=\"{1}\"/>", key, postData[key]);
+                }
+            }
+
+            string output = null;
+            Dictionary<string, object> variables = new Dictionary<string, object>();
+            variables["realm"] = realm;
+            variables["form_hidden_fields"] = formHiddenFields.ToString();
+
+            try { output = CableBeachState.WebTemplates.Render(PROVIDER_DIRECTED_LOGIN_TEMPLATE_FILE, variables); }
+            catch (Exception) { }
+            if (output == null) { output = "Failed to render template " + PROVIDER_DIRECTED_LOGIN_TEMPLATE_FILE; }
 
             httpResponse.ContentType = "text/html";
             OpenAuthHelper.AddToBody(httpResponse, output);

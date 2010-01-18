@@ -85,7 +85,7 @@ namespace ModCableBeach
             CableBeachServerState.Log.Info("[CABLE BEACH INVENTORY]: InventoryServerConnector is running");
         }
 
-        void CreateCapabilitiesHandler(Uri requestUrl, UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities)
+        void CreateCapabilitiesHandler(UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities)
         {
             Uri[] caps = new Uri[capabilities.Count];
             capabilities.Keys.CopyTo(caps, 0);
@@ -98,37 +98,37 @@ namespace ModCableBeach
                 switch (capName)
                 {
                     case CableBeachServices.FILESYSTEM_CREATE_FILESYSTEM:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBCreateInventoryHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBCreateInventoryHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_CREATE_OBJECT:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBCreateObjectHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBCreateObjectHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_GET_OBJECT:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetObjectHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBGetObjectHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_GET_FILESYSTEM_SKELETON:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetInventorySkeletonHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBGetInventorySkeletonHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_GET_FILESYSTEM:
                         m_log.Error("[CABLE BEACH INVENTORY]: Got a request for deprecated get_filesystem capability");
                         break;
                     case CableBeachServices.FILESYSTEM_GET_ROOT_FOLDER:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetRootFolderHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBGetRootFolderHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_PURGE_FOLDER:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBPurgeFolderHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBPurgeFolderHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_DELETE_OBJECT:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBDeleteObjectHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBDeleteObjectHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_GET_FOLDER_CONTENTS:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetFolderContentsHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBGetFolderContentsHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_GET_FOLDER_FOR_TYPE:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetFolderForTypeHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBGetFolderForTypeHandler(m_InventoryService), false, identity);
                         break;
                     case CableBeachServices.FILESYSTEM_GET_ACTIVE_GESTURES:
-                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetActiveGesturesHandler(m_InventoryService), false, identity);
+                        capabilities[cap] = CableBeachServerState.CreateCapability(sessionID, new CBGetActiveGesturesHandler(m_InventoryService), false, identity);
                         break;
                 }
             }

@@ -147,6 +147,11 @@ namespace OpenSim.Framework.Servers.HttpServer
             get { return _request.Uri; }
         }
 
+        public string[] UrlParts
+        {
+            get { return _request.UriParts; }
+        }
+
         public string UserAgent
         {
             get { return _userAgent; }
@@ -232,6 +237,11 @@ namespace OpenSim.Framework.Servers.HttpServer
             {
                 _log.ErrorFormat("[OSHttpRequest]: Error parsing querystring");
             }
+        }
+
+        public byte[] GetBody()
+        {
+            return _request.GetBody();
         }
 
         public override string ToString()

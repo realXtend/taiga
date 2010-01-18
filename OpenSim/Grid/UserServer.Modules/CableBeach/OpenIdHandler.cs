@@ -185,19 +185,27 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         return;
                     }
 
-                    UserProfileData profile;
-                    if (CableBeachState.TryGetProfile(new Uri(authRequest.ClaimedIdentifier.ToString()), out profile))
+                    if (authRequest.IsDirectedIdentity)
                     {
-                        // Authentication was requested
-                        CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
-                            httpRequest, null);
+                        // Directed identity, send the generic login form
+                        m_log.Debug("[CABLE BEACH IDP]: (GET) Sending directed provider login form");
+                        CableBeachState.SendProviderDirectedLoginTemplate(httpResponse, authRequest.Realm.ToString(), httpRequest, null);
                     }
                     else
                     {
-                        // Cannot find an avatar matching the claimed identifier
-                        m_log.Warn("[CABLE BEACH IDP]: (GET) Could not locate an avatar identity from the claimed identitifer " +
-                            authRequest.ClaimedIdentifier.ToString());
-                        authRequest.IsAuthenticated = false;
+                        // Identity already selected, try to pull up the profile
+                        UserProfileData profile;
+                        if (CableBeachState.TryGetProfile(new Uri(authRequest.ClaimedIdentifier.ToString()), out profile))
+                        {
+                            m_log.Debug("[CABLE BEACH IDP]: (GET) Sending provider login form for " + profile.Name);
+                            CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
+                                httpRequest, null);
+                        }
+                        else
+                        {
+                            m_log.Error("[CABLE BEACH IDP]: (GET) Attempted a non-directed login with an unknown identifier " + authRequest.ClaimedIdentifier);
+                            authRequest.IsAuthenticated = false;
+                        }
                     }
                 }
 
@@ -212,6 +220,73 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
             }
         }
 
+        void DoAuthentication(DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest, UserProfileData profile, string pass)
+        {
+            if (!String.IsNullOrEmpty(pass))
+            {
+                authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
+                m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
+
+                if (authRequest.IsAuthenticated.Value && claimsRequest != null)
+                {
+                    // Fill in a few Simple Registration values if there was a request for SREG data
+                    ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
+                    claimsResponse.Email = profile.Email;
+                    claimsResponse.FullName = profile.Name;
+                    claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
+                    authRequest.AddResponseExtension(claimsResponse);
+
+                    m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
+                }
+            }
+            else
+            {
+                // Valid POST but missing the password field, send the login form
+                m_log.Warn("[CABLE BEACH IDP]: POST is missing pass field for " + profile.Name);
+                authRequest.IsAuthenticated = false;
+            }
+        }
+
+        void DoAuthentication(DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest, string first, string last, string pass)
+        {
+            if (!String.IsNullOrEmpty(first) && !String.IsNullOrEmpty(last) && !String.IsNullOrEmpty(pass))
+            {
+                UserProfileData profile;
+                if (CableBeachState.TryGetProfile(first, last, out profile))
+                {
+                    // Set the claimed identifier to the URL of the given identity
+                    authRequest.ClaimedIdentifier = Identifier.Parse(new Uri(CableBeachState.UserServerUrl,
+                        String.Format("/users/{0}.{1}", profile.FirstName, profile.SurName)).ToString());
+
+                    authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
+                    m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
+
+                    if (authRequest.IsAuthenticated.Value && claimsRequest != null)
+                    {
+                        // Fill in a few Simple Registration values if there was a request for SREG data
+                        ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
+                        claimsResponse.Email = profile.Email;
+                        claimsResponse.FullName = profile.Name;
+                        claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
+                        authRequest.AddResponseExtension(claimsResponse);
+
+                        m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
+                    }
+                }
+                else
+                {
+                    m_log.Warn("[CABLE BEACH IDP]: Profile for user " + first + " " + last + " not found");
+                    authRequest.IsAuthenticated = false;
+                }
+            }
+            else
+            {
+                // Valid POST but missing one or more fields, send the login form
+                m_log.Warn("[CABLE BEACH IDP]: POST is missing first, last, or pass field, sending directed login form");
+                authRequest.IsAuthenticated = false;
+            }
+        }
+
         void OpenIDServerPostHandler(OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
             IRequest openidRequest = CableBeachState.Provider.GetRequest(OpenAuthHelper.GetRequestInfo(httpRequest));
@@ -222,56 +297,53 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                 {
                     DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest = (DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest)openidRequest;
                     ClaimsRequest claimsRequest = openidRequest.GetExtension<ClaimsRequest>();
+                    byte[] postBody = httpRequest.GetBody();
 
-                    Uri claimedIdentity = new Uri(authRequest.ClaimedIdentifier.ToString());
-
-                    // Try and lookup this avatar
-                    UserProfileData profile;
-                    if (CableBeachState.TryGetProfile(claimedIdentity, out profile))
+                    if (authRequest.IsDirectedIdentity)
                     {
-                        byte[] postBody = OpenAuthHelper.GetBody(httpRequest);
                         NameValueCollection postData = null;
-                        string[] passwordValues = null;
+                        string first = null, last = null, pass = null;
 
-                        // Get the password from the POST data
+                        // Get the firstname, lastname, and password from the POST data
                         if (postBody.Length > 0)
                         {
                             postData = HttpUtility.ParseQueryString(Encoding.UTF8.GetString(postBody, 0, postBody.Length), Encoding.UTF8);
-                            passwordValues = (postData != null) ? postData.GetValues("pass") : null;
-                        }
 
-                        if (passwordValues != null && passwordValues.Length == 1)
-                        {
-                            authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, passwordValues[0]);
-                            m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
-
-                            if (authRequest.IsAuthenticated.Value && claimsRequest != null)
+                            if (postData != null)
                             {
-                                // Fill in a few Simple Registration values if there was a request for SREG data
-                                ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
-                                claimsResponse.Email = profile.Email;
-                                claimsResponse.FullName = profile.Name;
-                                claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
-                                authRequest.AddResponseExtension(claimsResponse);
-
-                                m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
+                                first = postData["first"];
+                                last = postData["last"];
+                                pass = postData["pass"];
                             }
                         }
-                        else
-                        {
-                            // Valid POST but missing the password field, send the login form (again?)
-                            m_log.Warn("[CABLE BEACH IDP]: POST is missing \"pass\" field, (re?)sending login form for " + profile.Name);
-                            CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
-                                httpRequest, postData);
-                            return;
-                        }
+
+                        DoAuthentication(authRequest, claimsRequest, first, last, pass);
                     }
                     else
                     {
-                        // Cannot find an avatar matching the claimed identifier
-                        m_log.Warn("[CABLE BEACH IDP]: (POST) Could not locate an avatar identity from the claimed identitifer " +
-                            authRequest.ClaimedIdentifier.ToString());
-                        authRequest.IsAuthenticated = false;
+                        // Identity already selected
+                        Uri claimedIdentity = new Uri(authRequest.ClaimedIdentifier.ToString());
+
+                        // Try and lookup this avatar
+                        UserProfileData profile;
+                        if (CableBeachState.TryGetProfile(claimedIdentity, out profile))
+                        {
+                            NameValueCollection postData = null;
+                            string pass = null;
+
+                            // Get the password from the POST data
+                            if (postBody.Length > 0)
+                            {
+                                postData = HttpUtility.ParseQueryString(Encoding.UTF8.GetString(postBody, 0, postBody.Length), Encoding.UTF8);
+                                pass = (postData != null) ? postData["pass"] : null;
+                            }
+
+                            DoAuthentication(authRequest, claimsRequest, profile, pass);
+                        }
+                        else
+                        {
+                            m_log.Error("[CABLE BEACH IDP]: (POST) Attempted a non-directed login with an unknown identifier " + authRequest.ClaimedIdentifier);
+                        }
                     }
                 }
 
@@ -465,24 +537,31 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     // A number of different things could lead here (incomplete login sequence, browser refresh of a completed sequence).
                     // Safest thing to do would be to redirect back to the login screen
                     httpResponse.StatusCode = (int)HttpStatusCode.Found;
-                    httpResponse.AddHeader("Location", new Uri(httpRequest.Url, "/login/").ToString());
+                    httpResponse.AddHeader("Location", new Uri(CableBeachState.UserServerUrl, "/login/").ToString());
                 }
 
                 #endregion OAuth Callback
             }
             else
             {
-                // TODO: Get the hostname that we *should* be listening on, and check that against httpRequest.Url.Authority
-
-                // TODO: Check for a client cookie with an authenticated session
-
-                CableBeachState.SendLoginTemplate(httpResponse, null, null);
+                // Make sure we are starting from the correct URL
+                if (httpRequest.Url.Authority != CableBeachState.UserServerUrl.Authority)
+                {
+                    m_log.Debug("[CABLE BEACH LOGIN]: Redirecting from " + httpRequest.Url + " to " + CableBeachState.UserServerUrl);
+                    httpResponse.StatusCode = (int)HttpStatusCode.Redirect;
+                    httpResponse.RedirectLocation = new Uri(CableBeachState.UserServerUrl, "/login/").ToString();
+                }
+                else
+                {
+                    // TODO: Check for a client cookie with an authenticated session
+                    CableBeachState.SendLoginTemplate(httpResponse, null, null);
+                }
             }
         }
 
         void OpenIDLoginPostHandler(OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            byte[] requestData = OpenAuthHelper.GetBody(httpRequest);
+            byte[] requestData = httpRequest.GetBody();
             string queryString = HttpUtility.UrlDecode(requestData, System.Text.Encoding.UTF8);
             NameValueCollection query = System.Web.HttpUtility.ParseQueryString(queryString);
             string[] openidIdentifiers = query.GetValues("openid_identifier");

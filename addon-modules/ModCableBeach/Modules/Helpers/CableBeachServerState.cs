@@ -45,7 +45,7 @@ using OAuthServiceProvider = DotNetOpenAuth.OAuth.ServiceProvider;
 
 namespace ModCableBeach
 {
-    public delegate void CreateCapabilitiesCallback(Uri requestUrl, UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities);
+    public delegate void CreateCapabilitiesCallback(UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities);
 
     public class Capability
     {
@@ -121,7 +121,7 @@ namespace ModCableBeach
                 m_serviceCallbacks[serviceIdentifier] = capabilitiesCallback;
         }
 
-        public static Uri CreateCapability(Uri requestUrl, UUID sessionID, BaseStreamHandler httpHandler, bool clientCertRequired, object state)
+        public static Uri CreateCapability(UUID sessionID, BaseStreamHandler httpHandler, bool clientCertRequired, object state)
         {
             UUID capID = UUID.Random();
 
@@ -130,7 +130,7 @@ namespace ModCableBeach
                 new Capability(capID, sessionID, httpHandler, clientCertRequired, state),
                 TimeSpan.FromHours(CAPABILITY_TIMEOUT_MINUTES));
 
-            return new Uri(requestUrl, CABLE_BEACH_CAPS_PATH + capID.ToString());
+            return new Uri(ServiceUrl, CABLE_BEACH_CAPS_PATH + capID.ToString());
         }
 
         public static bool RemoveCapabilities(UUID sessionID)
@@ -147,7 +147,7 @@ namespace ModCableBeach
         /// <param name="requestUrl"></param>
         /// <param name="identity"></param>
         /// <param name="capabilities"></param>
-        public static void CreateCapabilities(Uri requestUrl, Uri identity, ref Dictionary<CapabilityIdentifier, Uri> capabilities)
+        public static void CreateCapabilities(Uri identity, ref Dictionary<CapabilityIdentifier, Uri> capabilities)
         {
             UUID sessionID = UUID.Random();
 
@@ -155,7 +155,7 @@ namespace ModCableBeach
             {
                 foreach (KeyValuePair<ServiceIdentifier, CreateCapabilitiesCallback> entry in m_serviceCallbacks)
                 {
-                    try { entry.Value(requestUrl, sessionID, identity, ref capabilities); }
+                    try { entry.Value(sessionID, identity, ref capabilities); }
                     catch (Exception ex)
                     {
                         Log.Error("[CABLE BEACH SERVER]: Service " + entry.Key +

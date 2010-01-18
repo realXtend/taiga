@@ -51,9 +51,17 @@ namespace OpenSim.Grid.UserServer.Modules
 {
     public class RootPageStreamHandler : IStreamHandler
     {
-        const string ROOT_TEMPLATE_FILE = "webtemplates/userserver_homepage.tpl";
-
-        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        const string XRDS_DOCUMENT =
+@"<?xml version=""1.0"" encoding=""UTF-8""?>
+<xrds:XRDS xmlns:xrds=""xri://$xrds"" xmlns=""xri://$xrd*($v*2.0)"">
+<XRD>
+    <Service priority=""0"">
+    <Type>http://specs.openid.net/auth/2.0/server</Type>
+    <URI>{0}</URI>
+    </Service>
+</XRD>
+</xrds:XRDS>
+";
 
         public string ContentType { get { return null; } }
         public string HttpMethod { get { return m_httpMethod; } }
@@ -62,7 +70,6 @@ namespace OpenSim.Grid.UserServer.Modules
         string m_httpMethod;
         string m_path;
         UserLoginService m_loginService;
-        SmartyEngine templates = new SmartyEngine();
 
         /// <summary>
         /// Constructor
@@ -79,14 +86,18 @@ namespace OpenSim.Grid.UserServer.Modules
         /// </summary>
         public void Handle(string path, Stream request, Stream response, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            string output = null;
-
-            try { output = templates.Render(ROOT_TEMPLATE_FILE, new Dictionary<string, object>(0)); }
-            catch (Exception) { }
-            if (output == null) { output = "Failed to render template " + ROOT_TEMPLATE_FILE; }
-
-            httpResponse.ContentType = "text/html";
-            OpenAuthHelper.AddToBody(httpResponse, output);
+            Uri openidServerUrl = new Uri(httpRequest.Url, "/openid/server");
+  
+            if (OpenAuthHelper.IsXrdsRequest(httpRequest))
+            {
+                httpResponse.ContentType = "application/xrds+xml";
+                OpenAuthHelper.AddToBody(httpResponse, String.Format(XRDS_DOCUMENT, openidServerUrl));
+            }
+            else
+            {
+                httpResponse.ContentType = "text/html";
+                CableBeachState.SendRootTemplate(httpResponse, openidServerUrl);
+            }
         }
     }
 }

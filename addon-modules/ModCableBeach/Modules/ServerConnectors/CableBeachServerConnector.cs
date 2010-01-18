@@ -126,6 +126,8 @@ namespace ModCableBeach
 
     public class CapabilityStreamHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CapabilityStreamHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -162,6 +164,8 @@ namespace ModCableBeach
 
     public class CBRootPageHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBRootPageHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -169,16 +173,18 @@ namespace ModCableBeach
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            Uri xrdUrl = new Uri(httpRequest.Url, "/xrd");
+            Uri xrdUrl = new Uri(CableBeachServerState.ServiceUrl, "/xrd");
             httpResponse.AddHeader("link", String.Format("<{0}>; rel=\"describedby\"; type=\"application/xrd+xml\"", xrdUrl));
 
             httpResponse.ContentType = "text/html";
-            return CableBeachServerState.BuildServiceRootPageTemplate(new Uri(httpRequest.Url, "/xrd").ToString());
+            return CableBeachServerState.BuildServiceRootPageTemplate(xrdUrl.ToString());
         }
     }
 
     public class CBXrdDocumentHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBXrdDocumentHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -205,6 +211,8 @@ namespace ModCableBeach
 
     public class CBRequestCapabilitiesHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBRequestCapabilitiesHandler() :
             base(null, null)
         {
@@ -229,7 +237,7 @@ namespace ModCableBeach
                     capabilities[message.Capabilities[i]] = null;
 
                 // Allow each registered service to attempt to fill in the capabilities request
-                CableBeachServerState.CreateCapabilities(httpRequest.Url, message.Identity, ref capabilities);
+                CableBeachServerState.CreateCapabilities(message.Identity, ref capabilities);
 
                 // Convert the dictionary of created capabilities to a reply
                 reply.Capabilities = new Dictionary<Uri, Uri>(capabilities.Count);
@@ -261,6 +269,8 @@ namespace ModCableBeach
 
     public class CBOAuthGetRequestTokenHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBOAuthGetRequestTokenHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -290,6 +300,8 @@ namespace ModCableBeach
 
     public class CBOAuthAuthorizeTokenHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBOAuthAuthorizeTokenHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -323,12 +335,12 @@ namespace ModCableBeach
                             try
                             {
                                 // Redirect the user to do an OpenID login through our trusted identity provider
-                                Realm realm = new Realm(new Uri(httpRequest.Url, "/"));
+                                Realm realm = new Realm(CableBeachServerState.ServiceUrl);
                                 Identifier identifier;
                                 Identifier.TryParse(CableBeachServerState.OpenIDProviderUrl.ToString(), out identifier);
 
                                 IAuthenticationRequest authRequest = CableBeachServerState.OpenIDRelyingParty.CreateRequest(
-                                    identifier, realm, new Uri(httpRequest.Url, "/oauth/openid_callback"));
+                                    identifier, realm, new Uri(CableBeachServerState.ServiceUrl, "/oauth/openid_callback"));
                                 authRequest.AddCallbackArguments("oauth_request_token", oauthRequest.RequestToken);
                                 return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, authRequest.RedirectingResponse);
                             }
@@ -373,6 +385,8 @@ namespace ModCableBeach
 
     public class CBOAuthGetAccessTokenHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBOAuthGetAccessTokenHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -404,7 +418,7 @@ namespace ModCableBeach
                 }
 
                 // Allow each registered service to attempt to fill in the capabilities request
-                CableBeachServerState.CreateCapabilities(httpRequest.Url, oauthRequest.Identity, ref capabilities);
+                CableBeachServerState.CreateCapabilities(oauthRequest.Identity, ref capabilities);
 
                 // Convert the list of capabilities into <string,string> tuples, leaving out requests with empty values
                 Dictionary<string, string> capStrings = new Dictionary<string, string>(capabilities.Count);
@@ -435,6 +449,8 @@ namespace ModCableBeach
 
     public class CBOpenIDCallbackHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBOpenIDCallbackHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -488,6 +504,8 @@ namespace ModCableBeach
 
     public class CBPermissionGrantFormHandler : BaseStreamHandler
     {
+        public override string ContentType { get { return null; } }
+
         public CBPermissionGrantFormHandler(string httpMethod, string path) :
             base(httpMethod, path)
         {
@@ -500,7 +518,7 @@ namespace ModCableBeach
 
             try
             {
-                byte[] requestData = OpenAuthHelper.GetBody(httpRequest);
+                byte[] requestData = httpRequest.GetBody();
                 string queryString = HttpUtility.UrlDecode(requestData, Encoding.UTF8);
                 query = HttpUtility.ParseQueryString(queryString);
             }

@@ -1,0 +1,32 @@
+<html>
+<head>
+<title>Confirm Access</title>
+</head>
+<body>
+<p>
+
+<h3>OpenSim Inventory Server</h3>
+
+<form method="post" action="/oauth/user_authorize">
+	<h3>{$identity}</h3><br/>
+	Please confirm that you want to allow <strong>{$consumer}</strong> access to the following:
+	<br/>
+	<ul>
+	{foreach from=$capabilities item=capability}
+	    <li>{$capability}</li>
+	{/foreach}
+	</ul>
+	<br/>
+	<input type="hidden" name="callback" value="{$callback}"/>
+	<input type="hidden" name="request_token" value="{$request_token}"/>
+	<div class="column">
+		<input type="submit" name="confirm" value="Confirm" class="primary"/>
+	</div>
+	<div class="column">
+		 <input type="submit" name="cancel" value="Cancel"/>
+	</div>
+</form>
+
+</p>
+</body>
+</html>

@@ -57,42 +57,6 @@ namespace OpenSim.Grid.UserServer.Modules
             response.Body.Write(bytes, 0, bytes.Length);
         }
 
-        public static byte[] GetBody(OSHttpRequest request)
-        {
-            if (!request.HasEntityBody || !request.InputStream.CanSeek)
-                return new byte[0];
-
-            request.InputStream.Seek(0, SeekOrigin.Begin);
-
-            // If Content-Length is set we create a buffer of the exact size, otherwise
-            // a MemoryStream is used to receive the response
-            bool nolength = (request.ContentLength <= 0);
-            int size = (nolength) ? 8192 : (int)request.ContentLength;
-            MemoryStream ms = (nolength) ? new MemoryStream() : null;
-            byte[] buffer = new byte[size];
-
-            int bytesRead = 0;
-            int offset = 0;
-
-            while ((bytesRead = request.InputStream.Read(buffer, offset, size)) != 0)
-            {
-                if (nolength)
-                {
-                    ms.Write(buffer, 0, bytesRead);
-                }
-                else
-                {
-                    offset += bytesRead;
-                    size -= bytesRead;
-                }
-            }
-
-            if (nolength)
-                return ms.ToArray();
-            else
-                return buffer;
-        }
-
         /// <summary>
         /// Copies the contents of one stream to another.
         /// </summary>
@@ -143,15 +107,26 @@ namespace OpenSim.Grid.UserServer.Modules
                 AddToBody(httpResponse, openAuthResponse.Body);
         }
 
-        public static HttpRequestInfo GetRequestInfo(OSHttpRequest request)
+        public static HttpRequestInfo GetRequestInfo(OSHttpRequest httpRequest)
         {
             // Combine HTTP headers and URL query values
             WebHeaderCollection headers = new WebHeaderCollection();
-            try { headers.Add(request.Headers); }
+            try { headers.Add(httpRequest.Headers); }
             catch (Exception) { }
 
-            string rawUrl = request.Url.AbsolutePath + request.Url.Query + request.Url.Fragment;
-            return new HttpRequestInfo(request.HttpMethod, request.Url, rawUrl, headers, request.InputStream);
+            string rawUrl = httpRequest.RawUrl;
+            return new HttpRequestInfo(httpRequest.HttpMethod, httpRequest.Url, rawUrl, headers, httpRequest.InputStream);
+        }
+
+        public static bool IsXrdsRequest(OSHttpRequest httpRequest)
+        {
+            for (int i = 0; i < httpRequest.AcceptTypes.Length; i++)
+            {
+                if (httpRequest.AcceptTypes[i].ToLowerInvariant().Equals("application/xrds+xml"))
+                    return true;
+            }
+
+            return false;
         }
 
         public static string CreateQueryString(IDictionary<string, string> args)

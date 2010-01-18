@@ -54,6 +54,10 @@ namespace OpenSim.Framework.Servers.Tests
             {
                 get { return _secured; }
             }
+            public ClientCertificate ClientCertificate
+            {
+                get { return null; }
+            }
 
             public TestHttpClientContext(bool secured)
             {
@@ -176,6 +180,7 @@ namespace OpenSim.Framework.Servers.Tests
             }
 
             public void DecodeBody(FormDecoderProvider providers) {}
+            public byte[] GetBody() { return null; }
             public void SetCookies(RequestCookies cookies) {}
             public void AddHeader(string name, string value)
             {

@@ -70,42 +70,6 @@ namespace ModCableBeach
             response.Body.Write(bytes, 0, bytes.Length);
         }
 
-        public static byte[] GetBody(OSHttpRequest request)
-        {
-            if (!request.HasEntityBody || !request.InputStream.CanSeek)
-                return new byte[0];
-
-            request.InputStream.Seek(0, SeekOrigin.Begin);
-
-            // If Content-Length is set we create a buffer of the exact size, otherwise
-            // a MemoryStream is used to receive the response
-            bool nolength = (request.ContentLength <= 0);
-            int size = (nolength) ? 8192 : (int)request.ContentLength;
-            MemoryStream ms = (nolength) ? new MemoryStream() : null;
-            byte[] buffer = new byte[size];
-
-            int bytesRead = 0;
-            int offset = 0;
-
-            while ((bytesRead = request.InputStream.Read(buffer, offset, size)) != 0)
-            {
-                if (nolength)
-                {
-                    ms.Write(buffer, 0, bytesRead);
-                }
-                else
-                {
-                    offset += bytesRead;
-                    size -= bytesRead;
-                }
-            }
-
-            if (nolength)
-                return ms.ToArray();
-            else
-                return buffer;
-        }
-
         /// <summary>
         /// Copies the contents of one stream to another.
         /// </summary>

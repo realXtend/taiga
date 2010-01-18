@@ -51,7 +51,7 @@ namespace OpenSim.Client.VWoHTTP.ClientStack
         {
             //                              0        1          2       3
             // http://simulator.com:9000/vwohttp/sessionid/methodname/param
-            string[] urlparts = req.Url.AbsolutePath.Split(new char[] {'/'}, StringSplitOptions.RemoveEmptyEntries);
+            string[] urlparts = req.UrlParts;
 
             UUID sessionID;
             // Check for session

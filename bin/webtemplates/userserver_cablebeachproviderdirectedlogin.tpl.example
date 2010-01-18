@@ -1,0 +1,16 @@
+<html>
+<head><title>OpenSim OpenID Login</title></head>
+<body>
+<h3>OpenSim Login</h3>
+
+<p>You are logging in to <strong>{$realm}</strong>. Please enter your password below</p>
+
+<form method="post">
+<label for="first">First Name:</label> <input type="text" name="first" id="first"/><br/>
+<label for="last">Last Name:</label> <input type="text" name="last" id="last"/><br/>
+<label for="pass">Password:</label> <input type="password" name="pass" id="pass"/><br/>
+{$form_hidden_fields}
+<input type="submit" value="Login">
+</form>
+</body>
+</html>

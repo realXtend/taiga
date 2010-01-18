@@ -92,7 +92,7 @@ namespace OpenSim.Client.VWoHTTP
 
         public bool Handle(OSHttpRequest req, OSHttpResponse resp)
         {
-            string[] urlparts = req.Url.AbsolutePath.Split(new char[] {'/'}, StringSplitOptions.RemoveEmptyEntries);
+            string[] urlparts = req.UrlParts;
 
             if (urlparts.Length < 2)
                 return false;
