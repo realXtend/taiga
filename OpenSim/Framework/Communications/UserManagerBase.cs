@@ -679,7 +679,7 @@ namespace OpenSim.Framework.Communications
                 }
             }
 
-            UserProfileData userProf = GetUserProfile(firstName, lastName);
+            UserProfileData userProf = GetUserProfile(SetUUID);
             if (userProf == null)
             {
                 return UUID.Zero;
