@@ -92,6 +92,12 @@ namespace OpenSim.Grid.UserServer.Modules
             LibraryRootFolder libraryRootFolder, UserConfig config, string welcomeMess, IRegionProfileRouter regionProfileService)
             : base(userManager, inventoryService, libraryRootFolder, config, welcomeMess, regionProfileService)
         {
+            // Initialize the generic data service
+            string storageProvider = config.DatabaseProvider;
+            string connString = config.DatabaseConnect;
+
+            Object[] args = new Object[] { connString };
+            CableBeachState.GenericData = LoadPlugin<IGenericData>(storageProvider, args);
         }
 
         public new InventoryData GetInventorySkeleton(UUID userID)
@@ -127,6 +133,38 @@ namespace OpenSim.Grid.UserServer.Modules
             }
 
             return buddylistreturn;
+        }
+
+        private T LoadPlugin<T>(string dllName, Object[] args) where T : class
+        {
+            string interfaceName = typeof(T).ToString();
+
+            try
+            {
+                Assembly pluginAssembly = Assembly.LoadFrom(dllName);
+
+                foreach (Type pluginType in pluginAssembly.GetTypes())
+                {
+                    if (pluginType.IsPublic)
+                    {
+                        Type typeInterface =
+                                pluginType.GetInterface(interfaceName, true);
+                        if (typeInterface != null)
+                        {
+                            T plug = (T)Activator.CreateInstance(pluginType,
+                                    args);
+
+                            return plug;
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
     }
 
@@ -232,6 +270,10 @@ namespace OpenSim.Grid.UserServer.Modules
 
         /// <summary>A reference to available UserServer services</summary>
         public static CableBeachLoginService LoginService;
+
+        /// <summary>Access to the generic data storage backend, used to map
+        /// identities to OpenSim accounts</summary>
+        public static IGenericData GenericData;
 
         /// <summary>A helper property to get at the user server URL</summary>
         public static Uri UserServerUrl { get { return LoginService.m_config.AuthUrl; } }
