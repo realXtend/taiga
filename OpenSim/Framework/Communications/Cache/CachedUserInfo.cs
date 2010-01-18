@@ -346,8 +346,16 @@ namespace OpenSim.Framework.Communications.Cache
                 folder.Items[itemInfo.ID] = itemInfo;
             }
 
-            if (OnItemReceived != null)
-                OnItemReceived(itemInfo.ID);
+            try
+            {
+                if (OnItemReceived != null)
+                    OnItemReceived(itemInfo.ID);
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("[INVENTORY CACHE]: failed processing callbacks on inventory item {0}, {1}",
+                    itemInfo.AssetID.ToString(), e.ToString());
+            }
         }
 
         /// <summary>

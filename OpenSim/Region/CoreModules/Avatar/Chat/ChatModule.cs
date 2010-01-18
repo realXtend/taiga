@@ -239,14 +239,11 @@ namespace OpenSim.Region.CoreModules.Avatar.Chat
         {
             // unless the chat to be broadcast is of type Region, we
             // drop it if its channel is neither 0 nor DEBUG_CHANNEL
-            if (c.Channel != 0 && c.Channel != DEBUG_CHANNEL && c.Type != ChatTypeEnum.Region) return;
+            if (c.Channel != 0 && c.Channel != DEBUG_CHANNEL) return;
 
             ChatTypeEnum cType = c.Type;
             if (c.Channel == DEBUG_CHANNEL)
                 cType = ChatTypeEnum.DebugChannel;
-
-            if (cType == ChatTypeEnum.Region)
-                cType = ChatTypeEnum.Say;
 
             if (c.Message.Length > 1100)
                 c.Message = c.Message.Substring(0, 1000);

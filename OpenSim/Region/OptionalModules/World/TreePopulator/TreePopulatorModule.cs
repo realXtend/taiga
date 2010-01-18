@@ -63,6 +63,7 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
             public float m_treeline_high;
             public Vector3 m_seed_point;
             public double m_range;
+            public double m_slope;
             public Vector3 m_initial_scale;
             public Vector3 m_maximum_scale;
             public Vector3 m_rate;
@@ -86,6 +87,7 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
                 this.m_treeline_high = cp.m_treeline_high;
                 this.m_treeline_low = cp.m_treeline_low;
                 this.m_range = cp.m_range;
+                this.m_slope = cp.m_slope;
                 this.m_tree_type = cp.m_tree_type;
                 this.m_seed_point = cp.m_seed_point;
                 this.m_initial_scale = cp.m_initial_scale;
@@ -107,16 +109,17 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
                 this.m_treeline_high = float.Parse(field[3]);
                 this.m_treeline_low = float.Parse(field[4]);
                 this.m_range = double.Parse(field[5]);
-                this.m_tree_type = (Tree) Enum.Parse(typeof(Tree),field[6]);
-                this.m_seed_point = Vector3.Parse(field[7]);
-                this.m_initial_scale = Vector3.Parse(field[8]);
-                this.m_maximum_scale = Vector3.Parse(field[9]);
-                this.m_rate = Vector3.Parse(field[10]);
+                this.m_slope = double.Parse(field[6]);
+                this.m_tree_type = (Tree) Enum.Parse(typeof(Tree),field[7]);
+                this.m_seed_point = Vector3.Parse(field[8]);
+                this.m_initial_scale = Vector3.Parse(field[9]);
+                this.m_maximum_scale = Vector3.Parse(field[10]);
+                this.m_rate = Vector3.Parse(field[11]);
                 this.m_planted = true;
                 this.m_trees = new List<UUID>();
             }
 
-            public Copse(string name, int quantity, float high, float low, double range, Vector3 point, Tree type, Vector3 scale, Vector3 max_scale, Vector3 rate, List<UUID> trees)
+	  public Copse(string name, int quantity, float high, float low, double range, double slope, Vector3 point, Tree type, Vector3 scale, Vector3 max_scale, Vector3 rate, List<UUID> trees)
             {
                 this.m_name = name;
                 this.m_frozen = false;
@@ -124,6 +127,7 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
                 this.m_treeline_high = high;
                 this.m_treeline_low = low;
                 this.m_range = range;
+                this.m_slope = slope;
                 this.m_tree_type = type;
                 this.m_seed_point = point;
                 this.m_initial_scale = scale;
@@ -137,13 +141,14 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
             {
                 string frozen = (this.m_frozen ? "F" : "A");
 
-                return string.Format("{0}TPM: {1}; {2}; {3:0.0}; {4:0.0}; {5:0.0}; {6}; {7:0.0}; {8:0.0}; {9:0.0}; {10:0.00};", 
+                return string.Format("{0}TPM: {1}; {2}; {3:0.0}; {4:0.0}; {5:0.0}; {6:0.0}; {7}; {8:0.0}; {9:0.0}; {10:0.0}; {11:0.00};", 
                     frozen,
                     this.m_name,
                     this.m_tree_quantity,
                     this.m_treeline_high,
                     this.m_treeline_low,
                     this.m_range,
+                    this.m_slope,
                     this.m_tree_type,
                     this.m_seed_point.ToString(),
                     this.m_initial_scale.ToString(),
@@ -749,11 +754,16 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
         {
             Vector3 position = new Vector3();
 
-            double randX = ((Util.RandomClass.NextDouble() * 2.0) - 1.0) * (s_tree.Scale.X * 3);
-            double randY = ((Util.RandomClass.NextDouble() * 2.0) - 1.0) * (s_tree.Scale.X * 3);
+            // double randX = ((Util.RandomClass.NextDouble() * 2.0) - 1.0) * (s_tree.Scale.X * 3);
+            // double randY = ((Util.RandomClass.NextDouble() * 2.0) - 1.0) * (s_tree.Scale.X * 3);
+            // position.X = s_tree.AbsolutePosition.X + (float)randX;
+            // position.Y = s_tree.AbsolutePosition.Y + (float)randY;
+	    double range = copse.m_range;
+            double randX = (Util.RandomClass.NextDouble() * 2.0 * range) - range;
+            double randY = (Util.RandomClass.NextDouble() * 2.0 * range) - range;
 
-            position.X = s_tree.AbsolutePosition.X + (float)randX;
-            position.Y = s_tree.AbsolutePosition.Y + (float)randY;
+            position.X = copse.m_seed_point.X + (float)randX;
+            position.Y = copse.m_seed_point.Y + (float)randY;
 
             if (position.X <= ((int)Constants.RegionSize - 1) && position.X >= 0 &&
                 position.Y <= ((int)Constants.RegionSize - 1) && position.Y >= 0 &&
@@ -767,10 +777,48 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
             }
         }
 
+	private double ComputeGroundNormal(Vector3 p0)
+	{
+	  //Find two points in addition to the position to define a plane
+	  double height;
+
+	  if ((p0.X + 1.0f) >= m_scene.Heightmap.Width)
+	    height = m_scene.Heightmap[(int)p0.X, (int)p0.Y];
+	  else
+	    height = m_scene.Heightmap[(int)(p0.X + 1.0f), (int)p0.Y];
+	  Vector3 p1 = new Vector3(p0.X + 1.0f, p0.Y, (float)height);
+
+	  if ((p0.Y + 1.0f) >= m_scene.Heightmap.Height)
+	    height = m_scene.Heightmap[(int)p0.X, (int)p0.Y];
+	  else
+	    height = m_scene.Heightmap[(int)p0.X, (int)(p0.Y + 1.0f)];
+	  Vector3 p2 = new Vector3(p0.X, p0.Y + 1.0f,(float)height);
+
+	  //Find normalized vectors from p0 to p1 and p0 to p2
+	  Vector3 v0 = new Vector3(p1.X - p0.X, p1.Y - p0.Y, p1.Z - p0.Z);
+	  Vector3 v1 = new Vector3(p2.X - p0.X, p2.Y - p0.Y, p2.Z - p0.Z);
+	  v0.Normalize();
+	  v1.Normalize();
+
+	  //Find the cross product of the vectors (the slope normal).
+	  Vector3 vsn = new Vector3();
+	  vsn.X = (v0.Y * v1.Z) - (v0.Z * v1.Y);
+	  vsn.Y = (v0.Z * v1.X) - (v0.X * v1.Z);
+	  vsn.Z = (v0.X * v1.Y) - (v0.Y * v1.X);
+	  vsn.Normalize();
+
+	  return vsn.Z;
+	}
+
+
         private void CreateTree(UUID uuid, Copse copse, Vector3 position)
         {
-
             position.Z = (float)m_scene.Heightmap[(int)position.X, (int)position.Y];
+	    double slope = ComputeGroundNormal(position);
+	    if (slope < copse.m_slope)
+	      return;
+
+
             if (position.Z >= copse.m_treeline_low && position.Z <= copse.m_treeline_high)
             {
                 SceneObjectGroup tree = AddTree(uuid, UUID.Zero, copse.m_initial_scale, Quaternion.Identity, position, copse.m_tree_type, false);
