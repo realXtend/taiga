@@ -551,6 +551,10 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     httpResponse.StatusCode = (int)HttpStatusCode.Redirect;
                     httpResponse.RedirectLocation = new Uri(CableBeachState.UserServerUrl, "/login/").ToString();
                 }
+                else if (httpRequest.Query.ContainsKey("openid_identifier"))
+                {
+                    OpenIDLoginFormHandler(httpRequest, httpResponse, httpRequest.Query["openid_identifier"] as string);
+                }
                 else
                 {
                     // TODO: Check for a client cookie with an authenticated session
@@ -564,14 +568,24 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
             byte[] requestData = httpRequest.GetBody();
             string queryString = HttpUtility.UrlDecode(requestData, System.Text.Encoding.UTF8);
             NameValueCollection query = System.Web.HttpUtility.ParseQueryString(queryString);
-            string[] openidIdentifiers = query.GetValues("openid_identifier");
+            string openidIdentifier = query["openid_identifier"];
 
+            OpenIDLoginFormHandler(httpRequest, httpResponse, openidIdentifier);
+        }
+
+        void OpenIDLoginFormHandler(OSHttpRequest httpRequest, OSHttpResponse httpResponse, string openidIdentifier)
+        {
             Uri identity;
             Identifier identifier;
 
-            if (openidIdentifiers != null && openidIdentifiers.Length == 1 &&
-                UriIdentifier.TryParse(openidIdentifiers[0], out identifier) &&
-                Uri.TryCreate(openidIdentifiers[0], UriKind.Absolute, out identity))
+            if (String.IsNullOrEmpty(openidIdentifier))
+            {
+                m_log.Warn("[CABLE BEACH LOGIN]: Received an OpenID login with an empty OpenID URL field");
+                CableBeachState.SendLoginTemplate(httpResponse, null, "Please fill in the OpenID URL field");
+                return;
+            }
+
+            if (UriIdentifier.TryParse(openidIdentifier, out identifier) && Uri.TryCreate(openidIdentifier, UriKind.Absolute, out identity))
             {
                 // Check if this identity is authorized for access
                 if (CableBeachState.IsIdentityAuthorized(identity))
@@ -623,11 +637,6 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     m_log.Warn("[CABLE BEACH LOGIN]: Identity " + identity + " was denied access");
                     CableBeachState.SendLoginTemplate(httpResponse, null, identity + " is not authorized to access this world");
                 }
-            }
-            else
-            {
-                m_log.Warn("[CABLE BEACH LOGIN]: Received a POST with an empty OpenID URL field");
-                CableBeachState.SendLoginTemplate(httpResponse, null, "Please fill in the OpenID URL field");
             }
         }
 
