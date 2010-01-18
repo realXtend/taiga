@@ -32,6 +32,7 @@ using System.Collections.Specialized;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Text;
 using System.Web;
 using System.Xml;
 using DotNetOpenAuth.OAuth.Messages;
@@ -199,11 +200,15 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     UserProfileData profile;
                     if (TryGetProfile(claimedIdentity, out profile))
                     {
-                        // Get the password from the POST data
                         byte[] postBody = OpenAuthHelper.GetBody(httpRequest);
-                        NameValueCollection postData = HttpUtility.ParseQueryString(
-                            httpRequest.ContentEncoding.GetString(postBody, 0, postBody.Length), httpRequest.ContentEncoding);
-                        string[] passwordValues = (postData != null) ? postData.GetValues("password") : null;
+                        string[] passwordValues = null;
+
+                        // Get the password from the POST data
+                        if (postBody.Length > 0)
+                        {
+                            NameValueCollection postData = HttpUtility.ParseQueryString(Encoding.UTF8.GetString(postBody, 0, postBody.Length), Encoding.UTF8);
+                            passwordValues = (postData != null) ? postData.GetValues("password") : null;
+                        }
 
                         if (passwordValues != null && passwordValues.Length == 1)
                         {
