@@ -79,6 +79,12 @@ namespace ModCableBeach
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_folder_for_type", new CBGetFolderForTypeHandler(m_InventoryService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_active_gestures", new CBGetActiveGesturesHandler(m_InventoryService)));
 
+            // TODO: Remove these legacy handlers once the UserServer->InventoryServer mess in OpenSim is sorted out
+            CheckTrustedSourceMethod nullCheck = delegate(IPEndPoint peer) { return true; };
+            server.AddStreamHandler(new RestDeserialiseTrustedHandler<Guid, bool>("POST", "/CreateInventory/", LegacyCreateUsersInventoryHandler, nullCheck));
+            server.AddStreamHandler(new RestDeserialiseTrustedHandler<Guid, List<InventoryFolderBase>>("POST", "/RootFolders/", LegacyRootFoldersHandler, nullCheck));
+            server.AddStreamHandler(new RestDeserialiseTrustedHandler<Guid, List<InventoryItemBase>>("POST", "/ActiveGestures/", LegacyActiveGesturesHandler, nullCheck));
+
             // Register this server connector as a Cable Beach service
             CableBeachServerState.RegisterService(new Uri(CableBeachServices.FILESYSTEM), CreateCapabilitiesHandler);
 
@@ -133,6 +139,8 @@ namespace ModCableBeach
                 }
             }
         }
+
+        #region Inventory Endpoint Handlers
 
         public class CBCreateInventoryHandler : BaseStreamHandler
         {
@@ -797,5 +805,52 @@ namespace ModCableBeach
                 }
             }
         }
+
+        #endregion Inventory Endpoint Handlers
+
+        #region Legacy Handlers
+
+        bool LegacyCreateUsersInventoryHandler(Guid rawUserID)
+        {
+            UUID ownerID = new UUID(rawUserID);
+            m_log.Info("[CABLE BEACH INVENTORY]: (Legacy) Creating new set of inventory folders for user " + ownerID);
+
+            if (!m_InventoryService.HasInventoryForUser(ownerID))
+            {
+                if (m_InventoryService.CreateUserInventory(ownerID))
+                {
+                    m_log.Info("[CABLE BEACH INVENTORY]: create_inventory succeeded for user " + ownerID);
+                    return true;
+                }
+                else
+                {
+                    m_log.Error("[CABLE BEACH INVENTORY]: create_inventory failed for user " + ownerID);
+                    return false;
+                }
+            }
+            else
+            {
+                m_log.Warn("[CABLE BEACH INVENTORY]: create_inventory called for user " + ownerID + " who already has an inventory");
+                return false;
+            }
+        }
+
+        List<InventoryFolderBase> LegacyRootFoldersHandler(Guid rawUserID)
+        {
+            UUID ownerID = new UUID(rawUserID);
+            m_log.Info("[CABLE BEACH INVENTORY]: (Legacy) Fetching full inventory for user " + ownerID);
+
+            return m_InventoryService.GetInventorySkeleton(ownerID);
+        }
+
+        List<InventoryItemBase> LegacyActiveGesturesHandler(Guid rawUserID)
+        {
+            UUID ownerID = new UUID(rawUserID);
+            m_log.Info("[CABLE BEACH INVENTORY]: (Legacy) Fetching active gestures for user " + ownerID);
+
+            return m_InventoryService.GetActiveGestures(ownerID);
+        }
+
+        #endregion Legacy Handlers
     }
 }
