@@ -237,7 +237,7 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         if (postBody.Length > 0)
                         {
                             postData = HttpUtility.ParseQueryString(Encoding.UTF8.GetString(postBody, 0, postBody.Length), Encoding.UTF8);
-                            passwordValues = (postData != null) ? postData.GetValues("password") : null;
+                            passwordValues = (postData != null) ? postData.GetValues("pass") : null;
                         }
 
                         if (passwordValues != null && passwordValues.Length == 1)
@@ -260,7 +260,7 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         else
                         {
                             // Valid POST but missing the password field, send the login form (again?)
-                            m_log.Warn("[CABLE BEACH IDP]: POST is missing password field, (re?)sending login form for " + profile.Name);
+                            m_log.Warn("[CABLE BEACH IDP]: POST is missing \"pass\" field, (re?)sending login form for " + profile.Name);
                             CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
                                 httpRequest, postData);
                             return;

@@ -790,7 +790,10 @@ namespace OpenSim.Grid.UserServer.Modules
             {
                 // Convert all of the POST parameters to form input fields
                 foreach (string key in postData.Keys)
-                    formHiddenFields.AppendFormat("<input name=\"{0}\" type=\"hidden\" value=\"{1}\"/>", key, postData[key]);
+                {
+                    if (key != "first" && key != "last" && key != "pass")
+                        formHiddenFields.AppendFormat("<input name=\"{0}\" type=\"hidden\" value=\"{1}\"/>", key, postData[key]);
+                }
             }
 
             string output = null;
