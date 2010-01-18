@@ -193,9 +193,11 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest = (DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest)openidRequest;
                     ClaimsRequest claimsRequest = openidRequest.GetExtension<ClaimsRequest>();
 
+                    Uri claimedIdentity = new Uri(authRequest.ClaimedIdentifier.ToString());
+
                     // Try and lookup this avatar
                     UserProfileData profile;
-                    if (TryGetProfile(httpRequest.Url, out profile))
+                    if (TryGetProfile(claimedIdentity, out profile))
                     {
                         // Get the password from the POST data
                         NameValueCollection postData = HttpUtility.ParseQueryString(new StreamReader(httpRequest.InputStream).ReadToEnd());
