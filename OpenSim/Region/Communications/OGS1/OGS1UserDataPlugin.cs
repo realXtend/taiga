@@ -611,17 +611,17 @@ namespace OpenSim.Region.Communications.OGS1
                         }
                         else
                         {
-                            m_log.Warn("[GRID]: Unable to update_user_appearance, User Server Reported an issue");
+                            m_log.Warn("[GRID]: Unable to update_avatar_appearance, User Server Reported an issue");
                         }
                     }
                     else
                     {
-                        m_log.Warn("[GRID]: Unable to update_user_appearance, UserServer didn't understand me!");
+                        m_log.Warn("[GRID]: Unable to update_avatar_appearance, UserServer didn't understand me!");
                     }
                 }
                 else
                 {
-                    m_log.Warn("[GRID]: Unable to update_user_appearance, UserServer didn't understand me!");
+                    m_log.Warn("[GRID]: Unable to update_avatar_appearance, UserServer didn't understand me!");
                 }
             }
             catch (WebException e)
