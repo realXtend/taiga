@@ -48,6 +48,9 @@ namespace OpenSim.Framework
         public string LibraryXmlfile = "";
         public string ConsoleUser = String.Empty;
         public string ConsolePass = String.Empty;
+        public string ContentFilePath = String.Empty;
+        public string FacebookAppKey = String.Empty;
+        public string FacebookAppSecret = String.Empty;
 
         private Uri m_inventoryUrl;
 
@@ -162,7 +165,15 @@ namespace OpenSim.Framework
             
             m_configMember.addConfigurationOption("console_pass", ConfigurationOption.ConfigurationTypes.TYPE_STRING,
                                                 "Remote console access password [Default: disabled]", "", false);
-            
+
+            m_configMember.addConfigurationOption("content_file_path", ConfigurationOption.ConfigurationTypes.TYPE_STRING,
+                                                  "File path for web content at /content/ [Default: disabled]", "", false);
+
+            m_configMember.addConfigurationOption("facebook_app_key", ConfigurationOption.ConfigurationTypes.TYPE_STRING,
+                                                  "Application key for Facebook Connect [Default: disabled]", "", false);
+
+            m_configMember.addConfigurationOption("facebook_app_secret", ConfigurationOption.ConfigurationTypes.TYPE_STRING,
+                                                  "Application secret for Facebook Connect [Default: disabled]", "", false);
         }
 
         public bool handleIncomingConfiguration(string configuration_key, object configuration_result)
@@ -222,6 +233,15 @@ namespace OpenSim.Framework
                     break;
                 case "console_pass":
                     ConsolePass = (string)configuration_result;
+                    break;
+                case "content_file_path":
+                    ContentFilePath = (string)configuration_result;
+                    break;
+                case "facebook_app_key":
+                    FacebookAppKey = (string)configuration_result;
+                    break;
+                case "facebook_app_secret":
+                    FacebookAppSecret = (string)configuration_result;
                     break;
             }
 
