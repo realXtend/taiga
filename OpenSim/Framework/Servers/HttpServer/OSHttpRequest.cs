@@ -77,10 +77,14 @@ namespace OpenSim.Framework.Servers.HttpServer
         {
             get
             {
-                RequestCookies cookies = _request.Cookies;
+                if (_request.Cookies == null)
+                    return null;
+
                 HttpCookieCollection httpCookies = new HttpCookieCollection();
-                foreach (RequestCookie cookie in cookies)
+
+                foreach (RequestCookie cookie in _request.Cookies)
                     httpCookies.Add(new HttpCookie(cookie.Name, cookie.Value));
+
                 return httpCookies;
             }
         }
