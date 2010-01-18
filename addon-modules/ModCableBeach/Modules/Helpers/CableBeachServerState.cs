@@ -28,6 +28,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Web;
 using log4net;
 using OpenSim.Framework.Servers.HttpServer;
 using DotNetOpenAuth.Messaging;
@@ -79,6 +80,20 @@ namespace ModCableBeach
         }
     }
 
+    public class AuthCookie
+    {
+        public string AuthToken;
+        public Uri Identity;
+        public List<string> AuthedRealms;
+
+        public AuthCookie(string authToken, Uri identity)
+        {
+            AuthToken = authToken;
+            Identity = identity;
+            AuthedRealms = new List<string>();
+        }
+    }
+
     public static class CableBeachServerState
     {
         #region Constants
@@ -100,6 +115,9 @@ namespace ModCableBeach
         /// <summary>Holds active capabilities, mapping from capability UUID to
         /// callback and session information</summary>
         public static ExpiringCache<UUID, Capability> Capabilities = new ExpiringCache<UUID, Capability>();
+        /// <summary>Holds a mapping from authentication tokens (stored in
+        /// cookies) to user profile data and pre-authenticated realms</summary>
+        public static ExpiringCache<string, AuthCookie> AuthCookies = new ExpiringCache<string, AuthCookie>();
         public static Uri ServiceUrl;
         public static Uri OpenIDProviderUrl;
         public static OpenIdRelyingParty OpenIDRelyingParty = new OpenIdRelyingParty(new StandardRelyingPartyApplicationStore());
@@ -166,6 +184,100 @@ namespace ModCableBeach
         }
 
         #endregion Capabilities
+
+        #region Cookies
+
+        public static bool SetAuthCookie(OSHttpRequest httpRequest, OSHttpResponse httpResponse, Uri identity, string consumer)
+        {
+            bool permissionGranted = false;
+            HttpCookie cookie = (httpRequest.Cookies != null) ? httpRequest.Cookies["cb_auth"] : null;
+            AuthCookie authCookie;
+            string cookieKey;
+
+            // Check for an existing cookie pointing to valid server-side cached info
+            if (cookie != null && AuthCookies.TryGetValue(cookie.Value, out authCookie))
+            {
+                cookieKey = cookie.Value;
+
+                // TODO: Linear search could be eliminated with a HashSet<>
+                if (authCookie.AuthedRealms.Contains(consumer))
+                    permissionGranted = true;
+            }
+            else
+            {
+                // Create a new cookie
+                cookieKey = UUID.Random().ToString();
+                authCookie = new AuthCookie(cookieKey, identity);
+            }
+
+            // Cookie will expire in five days
+            DateTime cookieExpiration = DateTime.Now + TimeSpan.FromDays(5.0);
+
+            // Set cookie information on the server side and in the client response
+            AuthCookies.AddOrUpdate(cookieKey, authCookie, cookieExpiration);
+
+            HttpCookie responseCookie = new HttpCookie("cb_auth", cookieKey);
+            responseCookie.Expires = cookieExpiration;
+            httpResponse.SetCookie(responseCookie);
+
+            return permissionGranted;
+        }
+
+        public static void StorePermissionGrant(OSHttpRequest httpRequest, string consumer)
+        {
+            HttpCookie cookie = (httpRequest.Cookies != null) ? httpRequest.Cookies["cb_auth"] : null;
+            AuthCookie authCookie;
+
+            // Check for an existing cookie pointing to valid server-side cached info
+            if (cookie != null && AuthCookies.TryGetValue(cookie.Value, out authCookie))
+            {
+                if (!authCookie.AuthedRealms.Contains(consumer))
+                    authCookie.AuthedRealms.Add(consumer);
+            }
+        }
+
+        #endregion Cookies
+
+        #region OAuth
+
+        public static byte[] MakeCheckPermissionsResponse(OSHttpRequest httpRequest, OSHttpResponse httpResponse, OAuthRequest oauthRequest)
+        {
+            // Return an auth cookie to the client and check if the current consumer has already been granted permissions
+            bool permissionGranted = SetAuthCookie(httpRequest, httpResponse, oauthRequest.Identity, oauthRequest.Request.Callback.Authority);
+
+            if (permissionGranted)
+            {
+                UserAuthorizationResponse oauthResponse = MakeOAuthSuccessResponse(oauthRequest.Request.RequestToken, oauthRequest);
+                Log.Info("[CABLE BEACH SERVER]: OAuth confirmation was cached, redirecting to " + oauthRequest.Request.Callback);
+                return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, OAuthServiceProvider.Channel.PrepareResponse(oauthResponse));
+            }
+            else
+            {
+                // Ask the user if they want to grant capabilities to the requesting world
+                return BuildPermissionGrantTemplate(oauthRequest);
+            }
+        }
+
+        public static UserAuthorizationResponse MakeOAuthSuccessResponse(string requestToken, OAuthRequest oauthRequest)
+        {
+            // Mark the request token as authorized
+            CableBeachServerState.OAuthTokenManager.AuthorizeRequestToken(requestToken);
+
+            // Create an authorization response (including a verification code)
+            UserAuthorizationResponse oauthResponse = CableBeachServerState.OAuthServiceProvider.PrepareAuthorizationResponse(oauthRequest.Request);
+
+            // Update the verification code for this request to the newly created verification code
+            try { CableBeachServerState.OAuthTokenManager.GetRequestToken(requestToken).VerificationCode = oauthResponse.VerificationCode; }
+            catch (KeyNotFoundException)
+            {
+                CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: Did not recognize request token \"" + requestToken +
+                    "\", failed to update verification code");
+            }
+
+            return oauthResponse;
+        }
+
+        #endregion OAuth
 
         #region HTML Templates
 

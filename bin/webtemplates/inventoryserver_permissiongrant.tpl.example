@@ -17,7 +17,6 @@
 	{/foreach}
 	</ul>
 	<br/>
-	<input type="hidden" name="callback" value="{$callback}"/>
 	<input type="hidden" name="request_token" value="{$request_token}"/>
 	<div class="column">
 		<input type="submit" name="confirm" value="Confirm" class="primary"/>

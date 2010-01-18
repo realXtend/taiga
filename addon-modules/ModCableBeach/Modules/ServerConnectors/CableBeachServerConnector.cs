@@ -332,12 +332,25 @@ namespace ModCableBeach
                             CableBeachServerState.OAuthCurrentRequests.AddOrUpdate(oauthRequest.RequestToken, thisRequest,
                                 TimeSpan.FromMinutes(CableBeachServerState.OAUTH_OPENID_LOGIN_TIMEOUT_MINUTES));
 
+                            HttpCookie cookie = (httpRequest.Cookies != null) ? httpRequest.Cookies["cb_auth"] : null;
+                            AuthCookie authCookie;
+                            if (cookie != null && CableBeachServerState.AuthCookies.TryGetValue(cookie.Value, out authCookie))
+                            {
+                                CableBeachServerState.Log.Debug("[CABLE BEACH SERVER]: Found auth cookie for " + authCookie.Identity);
+                                thisRequest.Identity = authCookie.Identity;
+
+                                // Return either a permission grant request page or a successful OAuth authorization response
+                                return CableBeachServerState.MakeCheckPermissionsResponse(httpRequest, httpResponse, thisRequest);
+                            }
+
+                            #region Start OpenID Auth
+
                             try
                             {
                                 // Redirect the user to do an OpenID login through our trusted identity provider
-                                Realm realm = new Realm(CableBeachServerState.ServiceUrl);
                                 Identifier identifier;
                                 Identifier.TryParse(CableBeachServerState.OpenIDProviderUrl.ToString(), out identifier);
+                                Realm realm = new Realm(CableBeachServerState.ServiceUrl);
 
                                 IAuthenticationRequest authRequest = CableBeachServerState.OpenIDRelyingParty.CreateRequest(
                                     identifier, realm, new Uri(CableBeachServerState.ServiceUrl, "/oauth/openid_callback"));
@@ -350,6 +363,8 @@ namespace ModCableBeach
                                 httpResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
                                 return Encoding.UTF8.GetBytes("OpenID authentication failed: " + ex.Message);
                             }
+
+                            #endregion Start OpenID Auth
                         }
                         else
                         {
@@ -477,8 +492,8 @@ namespace ModCableBeach
                         // OpenID authentication succeeded, store this users claimed identity
                         oauthRequest.Identity = identity;
 
-                        // Ask the user if they want to grant capabilities to the requesting world
-                        return CableBeachServerState.BuildPermissionGrantTemplate(oauthRequest);
+                        // Return either a permission grant request page or a successful OAuth authorization response
+                        return CableBeachServerState.MakeCheckPermissionsResponse(httpRequest, httpResponse, oauthRequest);
                     }
                     else
                     {
@@ -514,7 +529,6 @@ namespace ModCableBeach
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
             NameValueCollection query;
-            Uri callback;
 
             try
             {
@@ -529,52 +543,33 @@ namespace ModCableBeach
                 return Encoding.UTF8.GetBytes("Failed to parse required form parameters");
             }
 
-            if (Uri.TryCreate(OpenAuthHelper.GetQueryValue(query, "callback"), UriKind.Absolute, out callback))
+            string confirm = OpenAuthHelper.GetQueryValue(query, "confirm");
+            string requestToken = OpenAuthHelper.GetQueryValue(query, "request_token").Replace(' ', '+');
+
+            OAuthRequest oauthRequest;
+            if (!String.IsNullOrEmpty(confirm) && !String.IsNullOrEmpty(requestToken))
             {
-                string confirm = OpenAuthHelper.GetQueryValue(query, "confirm");
-                string requestToken = OpenAuthHelper.GetQueryValue(query, "request_token").Replace(' ', '+');
-
-                OAuthRequest oauthRequest;
-                if (!String.IsNullOrEmpty(confirm) && !String.IsNullOrEmpty(requestToken))
+                if (CableBeachServerState.OAuthCurrentRequests.TryGetValue(requestToken, out oauthRequest))
                 {
-                    if (CableBeachServerState.OAuthCurrentRequests.TryGetValue(requestToken, out oauthRequest))
-                    {
-                        // Mark the request token as authorized
-                        CableBeachServerState.OAuthTokenManager.AuthorizeRequestToken(requestToken);
+                    // Cache this permission grant
+                    CableBeachServerState.StorePermissionGrant(httpRequest, oauthRequest.Request.Callback.Authority);
 
-                        // Create an authorization response (including a verification code)
-                        UserAuthorizationResponse oauthResponse = CableBeachServerState.OAuthServiceProvider.PrepareAuthorizationResponse(oauthRequest.Request);
-
-                        // Update the verification code for this request to the newly created verification code
-                        try { CableBeachServerState.OAuthTokenManager.GetRequestToken(requestToken).VerificationCode = oauthResponse.VerificationCode; }
-                        catch (KeyNotFoundException)
-                        {
-                            CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: Did not recognize request token \"" + requestToken +
-                                "\", failed to update verification code");
-                        }
-
-                        CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: OAuth confirmation accepted, redirecting to " + callback);
-                        return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, CableBeachServerState.OAuthServiceProvider.Channel.PrepareResponse(oauthResponse));
-                    }
-                    else
-                    {
-                        // TODO: We should be redirecting to the callback with a failure parameter set
-                        CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: Could not find an open request matching request token \"" + requestToken + "\"");
-                        return Encoding.UTF8.GetBytes("Expired or invalid OAuth session");
-                    }
+                    UserAuthorizationResponse oauthResponse = CableBeachServerState.MakeOAuthSuccessResponse(requestToken, oauthRequest);
+                    CableBeachServerState.Log.Info("[CABLE BEACH SERVER]: OAuth confirmation accepted, redirecting to " + oauthRequest.Request.Callback);
+                    return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, CableBeachServerState.OAuthServiceProvider.Channel.PrepareResponse(oauthResponse));
                 }
                 else
                 {
                     // TODO: We should be redirecting to the callback with a failure parameter set
-                    CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: OAuth confirmation (redirecting to " + callback + ") was denied");
-                    return Encoding.UTF8.GetBytes("Confirmation denied");
+                    CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: Could not find an open request matching request token \"" + requestToken + "\"");
+                    return Encoding.UTF8.GetBytes("Expired or invalid OAuth session");
                 }
             }
             else
             {
-                CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: Received a POST to the OAuth confirmation form with no callback");
-                httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
-                return Encoding.UTF8.GetBytes("No callback specified");
+                // TODO: We should be redirecting to the callback with a failure parameter set
+                CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: OAuth confirmation was denied");
+                return Encoding.UTF8.GetBytes("Confirmation denied");
             }
         }
     }
