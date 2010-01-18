@@ -200,8 +200,10 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     if (TryGetProfile(claimedIdentity, out profile))
                     {
                         // Get the password from the POST data
-                        NameValueCollection postData = HttpUtility.ParseQueryString(new StreamReader(httpRequest.InputStream).ReadToEnd());
-                        string[] passwordValues = postData.GetValues("password");
+                        byte[] postBody = OpenAuthHelper.GetBody(httpRequest);
+                        NameValueCollection postData = HttpUtility.ParseQueryString(
+                            httpRequest.ContentEncoding.GetString(postBody, 0, postBody.Length), httpRequest.ContentEncoding);
+                        string[] passwordValues = (postData != null) ? postData.GetValues("password") : null;
 
                         if (passwordValues != null && passwordValues.Length == 1)
                         {
@@ -227,6 +229,7 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         else
                         {
                             // Authentication was requested, send the client a login form
+                            m_log.Debug("[CABLE BEACH IDP]: Sending login form for " + profile.Name);
                             OpenAuthHelper.AddToBody(httpResponse, String.Format(LOGIN_PAGE, profile.FirstName, profile.SurName));
                             return;
                         }
