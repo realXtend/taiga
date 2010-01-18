@@ -281,17 +281,20 @@ namespace ModCableBeach
                 AssetBase asset = m_Cache.Get(id);
                 if (asset != null)
                 {
-                    handler.BeginInvoke(id, sender, asset, null, null);
+                    Util.FireAndForget(delegate(object o) { handler(id, sender, asset); });
                     return true;
                 }
             }
 
             // Remote asset request
-            ThreadPool.QueueUserWorkItem(
+            Util.FireAndForget(
                 delegate(object o)
                 {
-                    handler(id, sender, Get(id));
-                });
+                    AssetBase asset = Get(id);
+                    handler(id, sender, asset);
+                }
+            );
+
             return true;
         }
 
