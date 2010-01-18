@@ -12,7 +12,9 @@
 
      <ReferencePath>../../../bin/</ReferencePath>
      <Reference name="System"/>
+     <Reference name="System.Web"/>
      <Reference name="System.Xml"/>
+     <Reference name="DotNetOpenAuth"/>
      <Reference name="log4net"/>
      <Reference name="Mono.Addins"/>
      <Reference name="Nini"/>
