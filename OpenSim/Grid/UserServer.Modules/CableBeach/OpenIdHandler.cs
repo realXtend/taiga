@@ -55,46 +55,76 @@ using ServiceIdentifier = System.Uri;
 
 namespace OpenSim.Grid.UserServer.Modules
 {
+    public class OpenIdUserPageStreamHandler : IStreamHandler
+    {
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+        public string ContentType { get { return null; } }
+        public string HttpMethod { get { return m_httpMethod; } }
+        public string Path { get { return m_path; } }
+
+        string m_httpMethod;
+        string m_path;
+
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        public OpenIdUserPageStreamHandler(string httpMethod, string path, UserLoginService loginService)
+        {
+            m_httpMethod = httpMethod;
+            m_path = path;
+        }
+
+        /// <summary>
+        /// Handles all GET and POST requests for OpenID identifier pages and endpoint
+        /// server communication
+        /// </summary>
+        public void Handle(string path, Stream request, Stream response, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            // Try and lookup this avatar
+            UserProfileData profile;
+            if (CableBeachState.TryGetProfile(httpRequest.Url, out profile))
+            {
+                if (httpRequest.Url.AbsolutePath.EndsWith(";xrd"))
+                {
+                    m_log.Debug("[CABLE BEACH IDP]: Returning XRD document for " + profile.Name);
+
+                    Uri identity = new Uri(httpRequest.Url.ToString().Replace(";xrd", String.Empty));
+
+                    // Create an XRD document from the identity URL and filesystem (inventory) service
+                    XrdDocument xrd = new XrdDocument(identity.ToString());
+                    xrd.Links.Add(new XrdLink(new Uri("http://specs.openid.net/auth"), null, new XrdUri(identity)));
+                    xrd.Links.Add(new XrdLink(new Uri(CableBeachServices.FILESYSTEM), "application/json", new XrdUri(CableBeachState.LoginService.m_config.InventoryUrl)));
+
+                    byte[] data = System.Text.Encoding.UTF8.GetBytes(XrdParser.WriteXrd(xrd));
+                    httpResponse.ContentLength = data.Length;
+                    httpResponse.ContentType = "application/xrd+xml";
+                    httpResponse.OutputStream.Write(data, 0, data.Length);
+                }
+                else
+                {
+                    m_log.Debug("[CABLE BEACH IDP]: Returning user identity page for " + profile.Name);
+                    CableBeachState.SendProviderUserTemplate(httpResponse, profile);
+                }
+            }
+            else
+            {
+                m_log.Warn("[CABLE BEACH IDP]: Couldn't find an account for identity page " + httpRequest.Url);
+                // Couldn't parse an avatar name, or couldn't find the avatar in the user server
+                httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
+                OpenAuthHelper.AddToBody(httpResponse, "OpenID identity not found");
+            }
+        }
+    }
+
     public class OpenIdProviderStreamHandler : IStreamHandler
     {
-        // FIXME: Replace this with templates
-        #region HTML
-
-        /// <summary>Login form used to authenticate OpenID requests</summary>
-        const string LOGIN_PAGE =
-@"<html>
-<head><title>OpenSim OpenID Login</title></head>
-<body>
-<h3>OpenSim Login</h3>
-<form method=""post"">
-<label for=""first"">First Name:</label> <input readonly type=""text"" name=""first"" id=""first"" value=""{0}""/>
-<label for=""last"">Last Name:</label> <input readonly type=""text"" name=""last"" id=""last"" value=""{1}""/>
-<label for=""pass"">Password:</label> <input type=""password"" name=""pass"" id=""pass""/>
-<input type=""submit"" value=""Login"">
-</form>
-</body>
-</html>";
-
-        /// <summary>Page shown for a valid OpenID identity</summary>
-        const string OPENID_PAGE =
-@"<html>
-<head>
-<title>{2} {3}</title>
-<link rel=""openid2.provider openid.server"" href=""{0}""/>
-<link rel=""describedby"" href=""{1}"" type=""application/xrd+xml"" />
-</head>
-<body>OpenID identifier for {2} {3}</body>
-</html>
-";
-
         /// <summary>Page shown if the OpenID endpoint is requested directly</summary>
         const string ENDPOINT_PAGE =
 @"<html><head><title>OpenID Endpoint</title></head><body>
 This is an OpenID server endpoint, not a human-readable resource.
 For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
 </body></html>";
-
-        #endregion HTML
 
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -115,16 +145,13 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
         }
 
         /// <summary>
-        /// Handles all GET and POST requests for OpenID identifier pages and endpoint
-        /// server communication
+        /// Handles all GET and POST requests for OpenID provider communication
         /// </summary>
         public void Handle(string path, Stream request, Stream response, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
             try
             {
-                bool isPost = httpRequest.HasEntityBody && httpRequest.Url.AbsolutePath.Contains("/openid/server");
-
-                if (isPost)
+                if (httpRequest.HasEntityBody)
                     OpenIDServerPostHandler(httpRequest, httpResponse);
                 else
                     OpenIDServerGetHandler(httpRequest, httpResponse);
@@ -139,47 +166,47 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
 
         void OpenIDServerGetHandler(OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            // TODO: Get the hostname that we *should* be listening on, and check that against httpRequest.Url.Authority
+            IRequest openidRequest = CableBeachState.Provider.GetRequest(OpenAuthHelper.GetRequestInfo(httpRequest));
 
-            if (httpRequest.Url.AbsolutePath.Contains("/openid/server"))
+            if (openidRequest != null)
             {
-                // Standard HTTP GET was made on the OpenID endpoint, send the client the default error page
-                OpenAuthHelper.AddToBody(httpResponse, ENDPOINT_PAGE);
-            }
-            else
-            {
-                // Try and lookup this avatar
-                UserProfileData profile;
-                if (TryGetProfile(httpRequest.Url, out profile))
+                if (openidRequest is DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest)
                 {
-                    if (httpRequest.Url.AbsolutePath.EndsWith(";xrd"))
+                    DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest = (DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest)openidRequest;
+
+                    // Check for cancellations
+                    if (!String.IsNullOrEmpty(httpRequest.QueryString["cancel"]))
                     {
-                        Uri identity = new Uri(httpRequest.Url.ToString().Replace(";xrd", String.Empty));
+                        m_log.Warn("[CABLE BEACH IDP]: Request to " + httpRequest.Url + " contained a cancel argument, sending a negative assertion");
+                        authRequest.IsAuthenticated = false;
+                        OpenAuthHelper.OpenAuthResponseToHttp(httpResponse, CableBeachState.Provider.PrepareResponse(openidRequest));
+                        return;
+                    }
 
-                        // Create an XRD document from the identity URL and filesystem (inventory) service
-                        XrdDocument xrd = new XrdDocument(identity.ToString());
-                        xrd.Links.Add(new XrdLink(new Uri("http://specs.openid.net/auth"), null, new XrdUri(identity)));
-                        xrd.Links.Add(new XrdLink(new Uri(CableBeachServices.FILESYSTEM), "application/json", new XrdUri(CableBeachState.LoginService.m_config.InventoryUrl)));
-
-                        byte[] data = System.Text.Encoding.UTF8.GetBytes(XrdParser.WriteXrd(xrd));
-                        httpResponse.ContentLength = data.Length;
-                        httpResponse.ContentType = "application/xrd+xml";
-                        httpResponse.OutputStream.Write(data, 0, data.Length);
+                    UserProfileData profile;
+                    if (CableBeachState.TryGetProfile(new Uri(authRequest.ClaimedIdentifier.ToString()), out profile))
+                    {
+                        // Authentication was requested
+                        CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
+                            httpRequest, null);
                     }
                     else
                     {
-                        // TODO: Print out a full profile page for this avatar
-                        Uri openIDServerUri = new Uri(httpRequest.Url, "/openid/server");
-                        Uri xrdUri = new Uri(httpRequest.Url, "/users/" + profile.FirstName + "." + profile.SurName + ";xrd");
-                        OpenAuthHelper.AddToBody(httpResponse, String.Format(OPENID_PAGE, openIDServerUri, xrdUri, profile.FirstName, profile.SurName));
+                        // Cannot find an avatar matching the claimed identifier
+                        m_log.Warn("[CABLE BEACH IDP]: (GET) Could not locate an avatar identity from the claimed identitifer " +
+                            authRequest.ClaimedIdentifier.ToString());
+                        authRequest.IsAuthenticated = false;
                     }
                 }
-                else
-                {
-                    // Couldn't parse an avatar name, or couldn't find the avatar in the user server
-                    httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
-                    OpenAuthHelper.AddToBody(httpResponse, "OpenID identity not found");
-                }
+
+                if (openidRequest.IsResponseReady)
+                    OpenAuthHelper.OpenAuthResponseToHttp(httpResponse, CableBeachState.Provider.PrepareResponse(openidRequest));
+            }
+            else
+            {
+                // Standard HTTP GET was made on the OpenID endpoint, send the client the default error page
+                httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                OpenAuthHelper.AddToBody(httpResponse, ENDPOINT_PAGE);
             }
         }
 
@@ -198,33 +225,30 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
 
                     // Try and lookup this avatar
                     UserProfileData profile;
-                    if (TryGetProfile(claimedIdentity, out profile))
+                    if (CableBeachState.TryGetProfile(claimedIdentity, out profile))
                     {
                         byte[] postBody = OpenAuthHelper.GetBody(httpRequest);
+                        NameValueCollection postData = null;
                         string[] passwordValues = null;
 
                         // Get the password from the POST data
                         if (postBody.Length > 0)
                         {
-                            NameValueCollection postData = HttpUtility.ParseQueryString(Encoding.UTF8.GetString(postBody, 0, postBody.Length), Encoding.UTF8);
+                            postData = HttpUtility.ParseQueryString(Encoding.UTF8.GetString(postBody, 0, postBody.Length), Encoding.UTF8);
                             passwordValues = (postData != null) ? postData.GetValues("password") : null;
                         }
 
                         if (passwordValues != null && passwordValues.Length == 1)
                         {
-                            if (CableBeachState.LoginService.AuthenticateUser(profile, passwordValues[0]))
-                                authRequest.IsAuthenticated = true;
-                            else
-                                authRequest.IsAuthenticated = false;
-
-                            m_log.Info("[CABLE BEACH IDP]: Password match success for + " + profile.Name + ": " + authRequest.IsAuthenticated);
+                            authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, passwordValues[0]);
+                            m_log.Info("[CABLE BEACH IDP]: Password match result for + " + profile.Name + ": " + authRequest.IsAuthenticated);
 
                             if (authRequest.IsAuthenticated.Value && claimsRequest != null)
                             {
                                 // Fill in a few Simple Registration values if there was a request for SREG data
                                 ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
                                 claimsResponse.Email = profile.Email;
-                                claimsResponse.FullName = profile.Name.Trim();
+                                claimsResponse.FullName = profile.Name;
                                 claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
                                 authRequest.AddResponseExtension(claimsResponse);
 
@@ -233,9 +257,10 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         }
                         else
                         {
-                            // Authentication was requested, send the client a login form
-                            m_log.Debug("[CABLE BEACH IDP]: Sending login form for " + profile.Name);
-                            OpenAuthHelper.AddToBody(httpResponse, String.Format(LOGIN_PAGE, profile.FirstName, profile.SurName));
+                            // Valid POST but missing the password field, send the login form (again?)
+                            m_log.Warn("[CABLE BEACH IDP]: POST is missing password field, (re?)sending login form for " + profile.Name);
+                            CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
+                                httpRequest, postData);
                             return;
                         }
                     }
@@ -251,32 +276,11 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                 if (openidRequest.IsResponseReady)
                     OpenAuthHelper.OpenAuthResponseToHttp(httpResponse, CableBeachState.Provider.PrepareResponse(openidRequest));
             }
-        }
-
-        /// <summary>
-        /// Parse a URL with a relative path of the form /users/First_Last and try to
-        /// retrieve the profile matching that avatar name
-        /// </summary>
-        /// <param name="requestUrl">URL to parse for an avatar name</param>
-        /// <param name="profile">Profile data for the avatar</param>
-        /// <returns>True if the parse and lookup were successful, otherwise false</returns>
-        bool TryGetProfile(Uri requestUrl, out UserProfileData profile)
-        {
-            if (requestUrl.Segments.Length == 3 && requestUrl.Segments[1] == "users/")
+            else
             {
-                // Parse the avatar name from the path
-                string username = requestUrl.Segments[requestUrl.Segments.Length - 1].Replace(";xrd", String.Empty);
-                string[] name = username.Split(new char[] { '_', '.' });
-
-                if (name.Length == 2)
-                {
-                    profile = CableBeachState.LoginService.GetTheUser(name[0], name[1]);
-                    return (profile != null);
-                }
+                m_log.Warn("[CABLE BEACH IDP]: Got a POST to a URL with missing or invalid OpenID data: " + httpRequest.Url);
+                OpenAuthHelper.AddToBody(httpResponse, ENDPOINT_PAGE);
             }
-
-            profile = null;
-            return false;
         }
     }
 

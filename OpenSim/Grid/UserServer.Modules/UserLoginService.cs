@@ -118,15 +118,18 @@ namespace OpenSim.Grid.UserServer.Modules
                 CableBeachState.LoginService = loginService;
 
                 // Handler for OpenID avatar identity pages
-                m_httpServer.AddStreamHandler(new OpenIdProviderStreamHandler("GET", "/users/", this));
+                m_httpServer.AddStreamHandler(new OpenIdUserPageStreamHandler("GET", "/users/", this));
+
                 // Handlers for the OpenID endpoint server
                 m_httpServer.AddStreamHandler(new OpenIdProviderStreamHandler("POST", "/openid/server", this));
                 m_httpServer.AddStreamHandler(new OpenIdProviderStreamHandler("GET", "/openid/server", this));
-                // Handler for the Facebook Connect login path
-                m_httpServer.AddStreamHandler(new FacebookStreamHandler("GET", "/facebook/login", this));
+
                 // Handlers for the Cable Beach login page
                 m_httpServer.AddStreamHandler(new OpenIdLoginStreamHandler("POST", "/login", this));
                 m_httpServer.AddStreamHandler(new OpenIdLoginStreamHandler("GET", "/login", this));
+
+                // Handler for the Facebook Connect login path
+                m_httpServer.AddStreamHandler(new FacebookStreamHandler("GET", "/facebook/login", this));
             }
         }
 

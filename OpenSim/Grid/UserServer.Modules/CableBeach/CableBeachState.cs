@@ -28,8 +28,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Net;
 using System.Reflection;
+using System.Text;
 using System.Web;
 using DotNetOpenAuth.Messaging;
 using DotNetOpenAuth.OAuth.Messages;
@@ -153,6 +155,8 @@ namespace OpenSim.Grid.UserServer.Modules
 
         const string LOGIN_TEMPLATE_FILE = "webtemplates/userserver_cablebeachlogin.tpl";
         const string LOGIN_SUCCESS_TEMPLATE_FILE = "webtemplates/userserver_cablebeachloginsuccess.tpl";
+        const string PROVIDER_LOGIN_TEMPLATE_FILE = "webtemplates/userserver_cablebeachproviderlogin.tpl";
+        const string PROVIDER_USER_TEMPLATE_FILE = "webtemplates/userserver_cablebeachprovideruser.tpl";
 
         #region Service Requirements
 
@@ -706,6 +710,32 @@ namespace OpenSim.Grid.UserServer.Modules
             return null;
         }
 
+        /// <summary>
+        /// Parse a URL with a relative path of the form /users/First_Last and try to
+        /// retrieve the profile matching that avatar name
+        /// </summary>
+        /// <param name="requestUrl">URL to parse for an avatar name</param>
+        /// <param name="profile">Profile data for the avatar</param>
+        /// <returns>True if the parse and lookup were successful, otherwise false</returns>
+        public static bool TryGetProfile(Uri requestUrl, out UserProfileData profile)
+        {
+            if (requestUrl.Segments.Length == 3 && requestUrl.Segments[1] == "users/")
+            {
+                // Parse the avatar name from the path
+                string username = requestUrl.Segments[requestUrl.Segments.Length - 1].Replace(";xrd", String.Empty);
+                string[] name = username.Split(new char[] { '_', '.' });
+
+                if (name.Length == 2)
+                {
+                    profile = LoginService.GetTheUser(name[0], name[1]);
+                    return (profile != null);
+                }
+            }
+
+            profile = null;
+            return false;
+        }
+
         #endregion Helper Methods
 
         #region HTML Templates
@@ -743,6 +773,54 @@ namespace OpenSim.Grid.UserServer.Modules
             if (output == null) { output = "Failed to render template " + LOGIN_SUCCESS_TEMPLATE_FILE; }
 
             // TODO: Put the sessionID in a response cookie
+            httpResponse.ContentType = "text/html";
+            OpenAuthHelper.AddToBody(httpResponse, output);
+        }
+
+        public static void SendProviderLoginTemplate(OSHttpResponse httpResponse, string firstName, string lastName, UUID avatarID, string realm,
+            OSHttpRequest httpRequest, NameValueCollection postData)
+        {
+            // Convert all of the query parameters to form input fields
+            StringBuilder formHiddenFields = new StringBuilder();
+            Dictionary<string, string> queryValues = OpenAuthHelper.QueryStringToDictionary(httpRequest.Url.Query);
+            foreach (KeyValuePair<string, string> entry in queryValues)
+                formHiddenFields.AppendFormat("<input name=\"{0}\" type=\"hidden\" value=\"{1}\"/>", entry.Key, entry.Value);
+
+            if (postData != null)
+            {
+                // Convert all of the POST parameters to form input fields
+                foreach (string key in postData.Keys)
+                    formHiddenFields.AppendFormat("<input name=\"{0}\" type=\"hidden\" value=\"{1}\"/>", key, postData[key]);
+            }
+
+            string output = null;
+            Dictionary<string, object> variables = new Dictionary<string, object>();
+            variables["first_name"] = firstName;
+            variables["last_name"] = lastName;
+            variables["avatar_id"] = avatarID.ToString();
+            variables["realm"] = realm;
+            variables["form_hidden_fields"] = formHiddenFields.ToString();
+
+            try { output = CableBeachState.WebTemplates.Render(PROVIDER_LOGIN_TEMPLATE_FILE, variables); }
+            catch (Exception) { }
+            if (output == null) { output = "Failed to render template " + PROVIDER_LOGIN_TEMPLATE_FILE; }
+
+            httpResponse.ContentType = "text/html";
+            OpenAuthHelper.AddToBody(httpResponse, output);
+        }
+
+        public static void SendProviderUserTemplate(OSHttpResponse httpResponse, UserProfileData profile)
+        {
+            // TODO: Pass more variables?
+            string output = null;
+            Dictionary<string, object> variables = new Dictionary<string, object>();
+            variables["first_name"] = profile.FirstName;
+            variables["last_name"] = profile.SurName;
+
+            try { output = CableBeachState.WebTemplates.Render(PROVIDER_USER_TEMPLATE_FILE, variables); }
+            catch (Exception) { }
+            if (output == null) { output = "Failed to render template " + PROVIDER_LOGIN_TEMPLATE_FILE; }
+
             httpResponse.ContentType = "text/html";
             OpenAuthHelper.AddToBody(httpResponse, output);
         }
