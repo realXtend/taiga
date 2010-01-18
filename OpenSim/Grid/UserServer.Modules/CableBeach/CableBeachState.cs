@@ -486,59 +486,6 @@ namespace OpenSim.Grid.UserServer.Modules
                     }
                 }
             }
-
-            /*foreach (KeyValuePair<ServiceIdentifier, Service> serviceEntry in stateData.Services)
-            {
-                Service service = serviceEntry.Value;
-
-                if (service.IsTrusted && service.SeedCapability == null)
-                    m_log.Warn("[CABLE BEACH LOGIN]: Trusted service has an oauth endpoint at " + service.OAuthRequestToken + " but no seed capability");
-
-                // Check if this is a trusted service
-                if (service.IsTrusted && service.SeedCapability != null)
-                {
-                    // Check if this service meets a service requirement
-                    CapabilityRequirements capsRequirements;
-                    if (stateData.ServiceRequirements.TryGetValue(serviceEntry.Key, out capsRequirements))
-                    {
-                        #region Seed Capability Request
-
-                        Uri[] capRequests = new Uri[capsRequirements.Count];
-                        capsRequirements.Keys.CopyTo(capRequests, 0);
-
-                        m_log.Info("[CABLE BEACH LOGIN]: Requesting " + capRequests.Length + " capabilities from seed capability at " + service.SeedCapability);
-
-                        // Trusted capability retrieval through a seed capability
-                        RequestCapabilitiesMessage message = new RequestCapabilitiesMessage();
-                        message.Identity = identity;
-                        message.Capabilities = capRequests;
-
-                        CapsClient request = new CapsClient(service.SeedCapability);
-                        OSDMap responseMap = request.GetResponse(message.Serialize(), OSDFormat.Json, SEED_CAP_TIMEOUT) as OSDMap;
-
-                        if (responseMap != null)
-                        {
-                            RequestCapabilitiesReplyMessage reply = new RequestCapabilitiesReplyMessage();
-                            reply.Deserialize(responseMap);
-
-                            m_log.Info("[CABLE BEACH LOGIN]: Fetched " + reply.Capabilities.Count + " capabilities from seed capability at " + service.SeedCapability);
-
-                            foreach (KeyValuePair<Uri, Uri> entry in reply.Capabilities)
-                                capsRequirements[entry.Key] = entry.Value;
-                        }
-                        else
-                        {
-                            m_log.Error("[CABLE BEACH LOGIN]: Failed to fetch capabilities from seed capability at " + service.SeedCapability);
-                        }
-
-                        #endregion Seed Capability Request
-                    }
-                    else
-                    {
-                        m_log.Warn("[CABLE BEACH LOGIN]: Trusted service at " + service.SeedCapability + " does not meet any service requirements");
-                    }
-                }
-            }*/
         }
 
         static bool GetUntrustedCapabilities(OSHttpRequest httpRequest, ServiceRequestsData stateData, out OutgoingWebResponse webResponse, out string requestToken)
