@@ -132,6 +132,20 @@ namespace OpenSim.Grid.UserServer.Modules
 
     #endregion UserServer Interface
 
+    public class AuthCookie
+    {
+        public string AuthToken;
+        public Uri Identity;
+        public UserProfileData UserProfile;
+
+        public AuthCookie(string authToken, Uri identity, UserProfileData userProfile)
+        {
+            AuthToken = authToken;
+            Identity = identity;
+            UserProfile = userProfile;
+        }
+    }
+
     /// <summary>
     /// Holds persistent (but temporary) state data across requests and different stream handlers
     /// </summary>
@@ -206,6 +220,9 @@ namespace OpenSim.Grid.UserServer.Modules
         /// <summary>Maps sessionIDs to user profiles for authenticated sessions
         /// that have not logged in with a viewer yet</summary>
         public static readonly ExpiringCache<UUID, UserProfileData> PendingLogins = new ExpiringCache<UUID, UserProfileData>();
+        /// <summary>Caches successful logins. The keys are stored as client
+        /// cookies and map to user profile information</summary>
+        public static readonly ExpiringCache<string, AuthCookie> AuthCookies = new ExpiringCache<string, AuthCookie>();
 
         /// <summary>Static instance of the thread-safe XML-RPC deserializing class</summary>
         public static readonly XmlRpcRequestDeserializer XmlRpcLoginDeserializer = new XmlRpcRequestDeserializer();
@@ -295,6 +312,7 @@ namespace OpenSim.Grid.UserServer.Modules
             out UserProfileData profile)
         {
             profile = null;
+            string finalFirstName, finalLastName;
 
             if (identity.Host.Equals(serverHostname, StringComparison.InvariantCultureIgnoreCase))
             {
@@ -320,9 +338,8 @@ namespace OpenSim.Grid.UserServer.Modules
             {
                 // No profile found yet, create a new user
 
-                // If no name has been set, use the OpenID URL as a name
-                if (String.IsNullOrEmpty(firstName) || String.IsNullOrEmpty(lastName))
-                    BuildAuthServiceName(identity, authMethod, out firstName, out lastName);
+                // Build a name from the given first and last name (if any) and the identity URL
+                BuildAuthServiceName(identity, authMethod, firstName, lastName, out finalFirstName, out finalLastName);
 
                 // Generate a random password to prevent unwanted login attempts through the non-OpenID path
                 string randomPassword = System.IO.Path.GetRandomFileName().Replace(".", String.Empty);
@@ -339,21 +356,21 @@ namespace OpenSim.Grid.UserServer.Modules
                 // Add the new user account
                 try
                 {
-                    UUID newUserID = LoginService.UserManager.AddUser(firstName, lastName, randomPassword, email,
+                    UUID newUserID = LoginService.UserManager.AddUser(finalFirstName, finalLastName, randomPassword, email,
                         LoginService.m_config.DefaultX, LoginService.m_config.DefaultY, agentID);
 
                     if (newUserID != agentID)
                     {
                         // Creating the account failed. It's possible that the firstName/lastName already exist in
-                        // the user database. Try falling back on using the OpenID as the username before giving up
-                        BuildAuthServiceName(identity, authMethod, out firstName, out lastName);
+                        // the user database. Try creating the name from the identity URL only before giving up
+                        BuildAuthServiceName(identity, authMethod, null, null, out finalFirstName, out finalLastName);
 
-                        newUserID = LoginService.UserManager.AddUser(firstName, lastName, randomPassword, email,
+                        newUserID = LoginService.UserManager.AddUser(finalFirstName, finalLastName, randomPassword, email,
                             LoginService.m_config.DefaultX, LoginService.m_config.DefaultY, agentID);
 
                         if (newUserID != agentID)
                         {
-                            m_log.Error("[CABLE BEACH LOGIN]: Failed to create new user \"" + firstName + " " + lastName + "\" (" + agentID + ")");
+                            m_log.Error("[CABLE BEACH LOGIN]: Failed to create new user \"" + finalFirstName + " " + finalLastName + "\" (" + agentID + ")");
                             agentID = UUID.Zero;
                         }
                     }
@@ -627,24 +644,24 @@ namespace OpenSim.Grid.UserServer.Modules
             return service;
         }
 
-        static void BuildAuthServiceName(Uri identity, string authMethod, out string firstName, out string lastName)
+        static void BuildAuthServiceName(Uri identity, string authMethod, string firstName, string lastName, out string finalFirstName, out string finalLastName)
         {
-            firstName = identity.ToString();
-            // Shorten long OpenID URLs
-            if (firstName.Length > 32)
-                firstName = firstName.Substring(0, 15) + "..." + firstName.Substring(firstName.Length - 14);
-
-            switch (authMethod)
+            if (!String.IsNullOrEmpty(firstName) && !String.IsNullOrEmpty(lastName))
             {
-                case CableBeachAuthMethods.OPENID:
-                    lastName = "OpenID";
-                    break;
-                case CableBeachAuthMethods.FACEBOOK:
-                    lastName = "Facebook";
-                    break;
-                default:
-                    lastName = "CableBeach";
-                    break;
+                // "First Last @identityprovider.com"
+                finalFirstName = firstName + " " + lastName;
+                finalLastName = "@" + identity.Authority;
+            }
+            else
+            {
+                // "http://identityprovider.com/myidentity/ @identityprovider.com"
+                finalFirstName = identity.ToString();
+
+                // Shorten long identity URLs
+                if (finalFirstName.Length > 32)
+                    finalFirstName = finalFirstName.Substring(0, 15) + "..." + finalFirstName.Substring(finalFirstName.Length - 14);
+
+                finalLastName = "@" + identity.Authority;
             }
         }
 

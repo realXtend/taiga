@@ -185,7 +185,16 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         return;
                     }
 
-                    if (authRequest.IsDirectedIdentity)
+                    // Check for a login cookie
+                    HttpCookie cookie = (httpRequest.Cookies != null) ? httpRequest.Cookies["cb_openid_auth"] : null;
+                    AuthCookie authCookie;
+                    if (cookie != null && CableBeachState.AuthCookies.TryGetValue(cookie.Value, out authCookie))
+                    {
+                        // Login was cached
+                        ClaimsRequest claimsRequest = openidRequest.GetExtension<ClaimsRequest>();
+                        DoCachedAuthentication(authRequest, claimsRequest, authCookie);
+                    }
+                    else if (authRequest.IsDirectedIdentity)
                     {
                         // Directed identity, send the generic login form
                         m_log.Debug("[CABLE BEACH IDP]: (GET) Sending directed provider login form");
@@ -195,7 +204,7 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     {
                         // Identity already selected, try to pull up the profile
                         UserProfileData profile;
-                        if (CableBeachState.TryGetProfile(new Uri(authRequest.ClaimedIdentifier.ToString()), out profile))
+                        if (CableBeachState.TryGetProfile((UriIdentifier)authRequest.ClaimedIdentifier, out profile))
                         {
                             m_log.Debug("[CABLE BEACH IDP]: (GET) Sending provider login form for " + profile.Name);
                             CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
@@ -217,73 +226,6 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                 // Standard HTTP GET was made on the OpenID endpoint, send the client the default error page
                 httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                 OpenAuthHelper.AddToBody(httpResponse, ENDPOINT_PAGE);
-            }
-        }
-
-        void DoAuthentication(DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest, UserProfileData profile, string pass)
-        {
-            if (!String.IsNullOrEmpty(pass))
-            {
-                authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
-                m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
-
-                if (authRequest.IsAuthenticated.Value && claimsRequest != null)
-                {
-                    // Fill in a few Simple Registration values if there was a request for SREG data
-                    ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
-                    claimsResponse.Email = profile.Email;
-                    claimsResponse.FullName = profile.Name;
-                    claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
-                    authRequest.AddResponseExtension(claimsResponse);
-
-                    m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
-                }
-            }
-            else
-            {
-                // Valid POST but missing the password field, send the login form
-                m_log.Warn("[CABLE BEACH IDP]: POST is missing pass field for " + profile.Name);
-                authRequest.IsAuthenticated = false;
-            }
-        }
-
-        void DoAuthentication(DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest, string first, string last, string pass)
-        {
-            if (!String.IsNullOrEmpty(first) && !String.IsNullOrEmpty(last) && !String.IsNullOrEmpty(pass))
-            {
-                UserProfileData profile;
-                if (CableBeachState.TryGetProfile(first, last, out profile))
-                {
-                    // Set the claimed identifier to the URL of the given identity
-                    authRequest.ClaimedIdentifier = Identifier.Parse(new Uri(CableBeachState.UserServerUrl,
-                        String.Format("/users/{0}.{1}", profile.FirstName, profile.SurName)).ToString());
-
-                    authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
-                    m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
-
-                    if (authRequest.IsAuthenticated.Value && claimsRequest != null)
-                    {
-                        // Fill in a few Simple Registration values if there was a request for SREG data
-                        ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
-                        claimsResponse.Email = profile.Email;
-                        claimsResponse.FullName = profile.Name;
-                        claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
-                        authRequest.AddResponseExtension(claimsResponse);
-
-                        m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
-                    }
-                }
-                else
-                {
-                    m_log.Warn("[CABLE BEACH IDP]: Profile for user " + first + " " + last + " not found");
-                    authRequest.IsAuthenticated = false;
-                }
-            }
-            else
-            {
-                // Valid POST but missing one or more fields, send the login form
-                m_log.Warn("[CABLE BEACH IDP]: POST is missing first, last, or pass field, sending directed login form");
-                authRequest.IsAuthenticated = false;
             }
         }
 
@@ -317,12 +259,12 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                             }
                         }
 
-                        DoAuthentication(authRequest, claimsRequest, first, last, pass);
+                        DoAuthentication(httpResponse, authRequest, claimsRequest, first, last, pass);
                     }
                     else
                     {
                         // Identity already selected
-                        Uri claimedIdentity = new Uri(authRequest.ClaimedIdentifier.ToString());
+                        Uri claimedIdentity = (UriIdentifier)authRequest.ClaimedIdentifier;
 
                         // Try and lookup this avatar
                         UserProfileData profile;
@@ -338,7 +280,7 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                                 pass = (postData != null) ? postData["pass"] : null;
                             }
 
-                            DoAuthentication(authRequest, claimsRequest, profile, pass);
+                            DoAuthentication(httpResponse, authRequest, claimsRequest, profile, pass);
                         }
                         else
                         {
@@ -356,6 +298,127 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                 OpenAuthHelper.AddToBody(httpResponse, ENDPOINT_PAGE);
             }
         }
+
+        #region Helper Methods
+
+        void DoCachedAuthentication(DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest, AuthCookie authCookie)
+        {
+            m_log.Info("[CABLE BEACH IDP]: Using cached login credentials for " + authCookie.UserProfile.Name);
+
+            authRequest.ClaimedIdentifier = authCookie.Identity;
+            authRequest.IsAuthenticated = true;
+
+            if (claimsRequest != null)
+            {
+                // Fill in a few Simple Registration values if there was a request for SREG data
+                ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
+                claimsResponse.Email = authCookie.UserProfile.Email;
+                claimsResponse.FullName = authCookie.UserProfile.Name;
+                claimsResponse.BirthDate = Utils.UnixTimeToDateTime(authCookie.UserProfile.Created);
+                authRequest.AddResponseExtension(claimsResponse);
+
+                m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
+            }
+        }
+
+        void DoAuthentication(OSHttpResponse httpResponse, DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest,
+            UserProfileData profile, string pass)
+        {
+            if (!String.IsNullOrEmpty(pass))
+            {
+                authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
+                m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
+
+                if (authRequest.IsAuthenticated.Value)
+                {
+                    // Cache this login
+                    SetCookie(httpResponse, new Uri(authRequest.ClaimedIdentifier), profile);
+
+                    if (claimsRequest != null)
+                    {
+                        // Fill in a few Simple Registration values if there was a request for SREG data
+                        ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
+                        claimsResponse.Email = profile.Email;
+                        claimsResponse.FullName = profile.Name;
+                        claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
+                        authRequest.AddResponseExtension(claimsResponse);
+
+                        m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
+                    }
+                }
+            }
+            else
+            {
+                // Valid POST but missing the password field, send the login form
+                m_log.Warn("[CABLE BEACH IDP]: POST is missing pass field for " + profile.Name);
+                authRequest.IsAuthenticated = false;
+            }
+        }
+
+        void DoAuthentication(OSHttpResponse httpResponse, DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest,
+            string first, string last, string pass)
+        {
+            if (!String.IsNullOrEmpty(first) && !String.IsNullOrEmpty(last) && !String.IsNullOrEmpty(pass))
+            {
+                UserProfileData profile;
+                if (CableBeachState.TryGetProfile(first, last, out profile))
+                {
+                    // Set the claimed identifier to the URL of the given identity
+                    Uri identity = new Uri(CableBeachState.UserServerUrl, String.Format("/users/{0}.{1}", profile.FirstName, profile.SurName));
+                    authRequest.ClaimedIdentifier = identity;
+
+                    authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
+                    m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
+
+                    if (authRequest.IsAuthenticated.Value)
+                    {
+                        // Cache this login
+                        SetCookie(httpResponse, identity, profile);
+
+                        if (claimsRequest != null)
+                        {
+                            // Fill in a few Simple Registration values if there was a request for SREG data
+                            ClaimsResponse claimsResponse = claimsRequest.CreateResponse();
+                            claimsResponse.Email = profile.Email;
+                            claimsResponse.FullName = profile.Name;
+                            claimsResponse.BirthDate = Utils.UnixTimeToDateTime(profile.Created);
+                            authRequest.AddResponseExtension(claimsResponse);
+
+                            m_log.Debug("[CABLE BEACH IDP]: Appended SREG values to the positive assertion response");
+                        }
+                    }
+                }
+                else
+                {
+                    m_log.Warn("[CABLE BEACH IDP]: Profile for user " + first + " " + last + " not found");
+                    authRequest.IsAuthenticated = false;
+                }
+            }
+            else
+            {
+                // Valid POST but missing one or more fields, send the login form
+                m_log.Warn("[CABLE BEACH IDP]: POST is missing first, last, or pass field, sending directed login form");
+                authRequest.IsAuthenticated = false;
+            }
+        }
+
+        void SetCookie(OSHttpResponse httpResponse, Uri identity, UserProfileData profile)
+        {
+            string cookieKey = UUID.Random().ToString();
+
+            // Cookie will expire in five days
+            DateTime cookieExpiration = DateTime.Now + TimeSpan.FromDays(5.0);
+
+            // Cache the server-side data
+            CableBeachState.AuthCookies.AddOrUpdate(cookieKey, new AuthCookie(cookieKey, identity, profile), cookieExpiration);
+
+            // Create the cookie
+            HttpCookie responseCookie = new HttpCookie("cb_openid_auth", cookieKey);
+            responseCookie.Expires = cookieExpiration;
+            httpResponse.SetCookie(responseCookie);
+        }
+
+        #endregion Helper Methods
     }
 
     public class OpenIdLoginStreamHandler : IStreamHandler

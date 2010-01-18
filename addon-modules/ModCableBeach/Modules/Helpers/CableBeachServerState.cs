@@ -306,7 +306,6 @@ namespace ModCableBeach
             variables["callback"] = oauthRequest.Request.Callback;
             variables["request_token"] = oauthRequest.Request.RequestToken;
             variables["consumer"] = oauthRequest.Request.Callback.Authority;
-            variables["capabilities"] = oauthRequest.CapabilityNames;
 
             try { output = WebTemplates.Render(PermissionGrantTemplateFile, variables); }
             catch (Exception) { }
