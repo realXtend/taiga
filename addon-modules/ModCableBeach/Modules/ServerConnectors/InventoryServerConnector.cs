@@ -54,12 +54,12 @@ namespace ModCableBeach
         {
             IConfig serverConfig = config.Configs["InventoryService"];
             if (serverConfig == null)
-                throw new Exception("No [InventoryService] section in config file");
+                throw new Exception("No InventoryService section in config file");
 
             string inventoryService = serverConfig.GetString("LocalServiceModule", String.Empty);
 
             if (String.IsNullOrEmpty(inventoryService))
-                throw new Exception("No LocalServiceModule in [InventoryService] section in config file");
+                throw new Exception("No LocalServiceModule in InventoryService section in config file");
 
             Object[] args = new Object[] { config };
             m_InventoryService = ServerUtils.LoadPlugin<IInventoryService>(inventoryService, args);
@@ -81,6 +81,8 @@ namespace ModCableBeach
 
             // Register this server connector as a Cable Beach service
             CableBeachServerState.RegisterService(new Uri(CableBeachServices.FILESYSTEM), CreateCapabilitiesHandler);
+
+            CableBeachServerState.Log.Info("[CABLE BEACH INVENTORY]: InventoryServerConnector is running");
         }
 
         void CreateCapabilitiesHandler(Uri requestUrl, UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities)

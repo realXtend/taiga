@@ -179,7 +179,7 @@ namespace ModCableBeach
             catch (Exception) { }
             if (output == null)
             {
-                Log.Error("Failed to render template " + ServiceRootTemplateFile);
+                Log.Error("[CABLE BEACH SERVER]: Failed to render template " + ServiceRootTemplateFile);
                 output = "Failed to render template " + ServiceRootTemplateFile;
             }
 
@@ -200,7 +200,7 @@ namespace ModCableBeach
             catch (Exception) { }
             if (output == null)
             {
-                Log.Error("Failed to render template " + PermissionGrantTemplateFile);
+                Log.Error("[CABLE BEACH SERVER]: Failed to render template " + PermissionGrantTemplateFile);
                 output = "Failed to render template " + PermissionGrantTemplateFile;
             }
 

@@ -225,5 +225,13 @@ namespace ModCableBeach
 
             return null;
         }
+
+        public static string GetQueryValue(NameValueCollection queryValues, string key)
+        {
+            string[] values = queryValues.GetValues(key);
+            if (values != null && values.Length > 0)
+                return values[0];
+            return null;
+        }
     }
 }

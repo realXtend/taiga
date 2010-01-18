@@ -51,12 +51,12 @@ namespace ModCableBeach
         {
             IConfig serverConfig = config.Configs["AssetService"];
             if (serverConfig == null)
-                throw new Exception("No [AssetService] section in config file");
+                throw new Exception("No AssetService section in config file");
 
             string assetService = serverConfig.GetString("LocalServiceModule", String.Empty);
 
             if (String.IsNullOrEmpty(assetService))
-                throw new Exception("No LocalServiceModule in [AssetService] section in config file");
+                throw new Exception("No LocalServiceModule in AssetService section in config file");
 
             Object[] args = new Object[] { config };
             m_AssetService = ServerUtils.LoadPlugin<IAssetService>(assetService, args);
@@ -68,6 +68,8 @@ namespace ModCableBeach
             server.AddStreamHandler(new TrustedStreamHandler("GET", "/assets", new CBAssetServerGetHandler(m_AssetService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/assets", new CBAssetServerPostHandler(m_AssetService)));
             server.AddStreamHandler(new TrustedStreamHandler("DELETE", "/assets", new CBAssetServerDeleteHandler(m_AssetService)));
+
+            CableBeachServerState.Log.Info("[CABLE BEACH ASSETS]: AssetServerConnector is running");
         }
     }
 
