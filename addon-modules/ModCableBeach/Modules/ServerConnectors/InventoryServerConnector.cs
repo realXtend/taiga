@@ -259,15 +259,21 @@ namespace ModCableBeach
                             item.AssetType = (int)CableBeachUtils.ContentTypeToSLAssetType(incomingObj.ContentType);
                             item.InvType = (int)CableBeachUtils.ContentTypeToSLInvType(incomingObj.ContentType);
                             item.CreationDate = (int)OpenMetaverse.Utils.DateTimeToUnixTime(DateTime.Now);
+                            item.CreatorIdAsUuid = incomingObj.CreatorID;
+                            item.CreatorId = incomingObj.CreatorID.ToString();
                         }
 
                         // Set the name
                         if (!String.IsNullOrEmpty(incomingObj.Name))
                             item.Name = incomingObj.Name;
+                        if (item.Name == null)
+                            item.Name = "(no name)";
 
                         // Set the description
                         if (!String.IsNullOrEmpty(incomingObj.Description))
                             item.Description = incomingObj.Description;
+                        if (item.Description == null)
+                            item.Description = String.Empty;
 
                         // Set everything else
                         item.BasePermissions = incomingObj.PermsBase;
