@@ -153,6 +153,10 @@ namespace ModCableBeach
                     asset = new AssetBase();
                     asset.Metadata = metadata;
                     asset.Data = assetData;
+
+                    // Store this asset in the local cache
+                    if (m_Cache != null)
+                        m_Cache.Cache(asset);
                 }
             }
 
