@@ -47,7 +47,7 @@ namespace ModCableBeach
         private IAssetService m_AssetService;
 
         public AssetServerConnector(IConfigSource config, IHttpServer server) :
-            base(config, server)
+            base(config, server, "AssetService")
         {
             IConfig serverConfig = config.Configs["AssetService"];
             if (serverConfig == null)

@@ -55,7 +55,7 @@ namespace ModCableBeach
     public class CableBeachServerConnector : ServiceConnector
     {
         public CableBeachServerConnector(IConfigSource config, IHttpServer server) :
-            base(config, server)
+            base(config, server, "CableBeachService")
         {
             Uri httpBaseUri;
 

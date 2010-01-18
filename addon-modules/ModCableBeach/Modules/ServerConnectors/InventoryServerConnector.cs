@@ -50,7 +50,7 @@ namespace ModCableBeach
         private IInventoryService m_InventoryService;
 
         public InventoryServerConnector(IConfigSource config, IHttpServer server) :
-            base(config, server)
+            base(config, server, "InventoryService")
         {
             IConfig serverConfig = config.Configs["InventoryService"];
             if (serverConfig == null)
@@ -166,9 +166,9 @@ namespace ModCableBeach
                         m_log.Warn("[CABLE BEACH INVENTORY]: create_inventory called for user " + ownerID + " who already has an inventory");
                     }
 
-                    InventoryFolderBase rootFolder = m_InventoryService.GetRootFolder(ownerID);
-                    if (rootFolder != null)
-                        reply.RootFolderID = rootFolder.ID;
+		    //                    InventoryFolderBase rootFolder = m_InventoryService.GetRootFolder(ownerID);
+		    //                    if (rootFolder != null)
+		    //                        reply.RootFolderID = rootFolder.ID;
 
                     return ServiceHelper.MakeResponse(httpResponse, reply.Serialize());
                 }
