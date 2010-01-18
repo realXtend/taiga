@@ -194,130 +194,20 @@ namespace ModCableBeach
 
         public InventoryCollection GetUserInventory(UUID userID)
         {
-            if (m_WorldServiceConnector == null)
-                return new InventoryCollection();
+            m_log.Error("[CABLE BEACH INVENTORY]: Legacy function GetUserInventory(UUID userID) called");
 
-            Uri identity = m_WorldServiceConnector.GetIdentity(userID);
-            Uri getFilesystemUri = GetServiceCapability(userID, CableBeachServices.FILESYSTEM_GET_FILESYSTEM);
-
-            m_log.Debug("[CABLE BEACH INVENTORY]: GetUserInventory(), Capability=" + getFilesystemUri);
-
-            if (getFilesystemUri != null)
-            {
-                GetInventoryMessage get = new GetInventoryMessage();
-                get.Identity = identity;
-                get.AgentID = userID;
-
-                CapsClient request = new CapsClient(getFilesystemUri);
-                OSDMap response = request.GetResponse(get.Serialize(), OSDFormat.Json, REQUEST_TIMEOUT) as OSDMap;
-
-                if (response != null)
-                {
-                    GetInventoryReplyMessage reply = new GetInventoryReplyMessage();
-                    reply.Deserialize(response);
-
-                    List<InventoryFolderBase> folders = new List<InventoryFolderBase>();
-                    List<InventoryItemBase> items = new List<InventoryItemBase>();
-
-                    // Convert the incoming array of inventory objects to separate collections of folders and items
-                    for (int i = 0; i < reply.Objects.Length; i++)
-                    {
-                        InventoryBlock obj = reply.Objects[i];
-
-                        if (obj is InventoryBlockFolder)
-                        {
-                            InventoryBlockFolder folderObj = (InventoryBlockFolder)obj;
-                            InventoryFolderImpl folder = BlockToFolder(folderObj);
-                            folders.Add(folder);
-                        }
-                        else
-                        {
-                            InventoryBlockItem itemObj = (InventoryBlockItem)obj;
-                            InventoryItemBase item = BlockToItem(itemObj);
-                            items.Add(item);
-                        }
-                    }
-
-                    m_log.Debug("[CABLE BEACH INVENTORY]: Fetched " + folders.Count + " folders and " + items.Count + " items for " + userID);
-
-                    InventoryCollection inventory = new InventoryCollection();
-                    inventory.UserID = userID;
-                    inventory.Folders = folders;
-                    inventory.Items = items;
-
-                    return inventory;
-                }
-                else
-                {
-                    m_log.Error("[CABLE BEACH INVENTORY]: Failed to retrieve filesystem for " + userID + " from " + getFilesystemUri);
-                }
-            }
-            else
-            {
-                m_log.Error("[CABLE BEACH INVENTORY]: Could not find a get_filesystem capability for " + userID);
-            }
-
-            return new InventoryCollection();
+            InventoryCollection collection = new InventoryCollection();
+            collection.UserID = userID;
+            collection.Items = new List<InventoryItemBase>();
+            collection.Folders = new List<InventoryFolderBase>();
+            return collection;
         }
 
         public void GetUserInventory(UUID userID, InventoryReceiptCallback callback)
         {
-            if (m_WorldServiceConnector == null)
-                return;
+            m_log.Error("[CABLE BEACH INVENTORY]: Legacy function GetUserInventory(UUID userID, InventoryReceiptCallback callback) called");
 
-            Uri identity = m_WorldServiceConnector.GetIdentity(userID);
-            Uri getFilesystemUri = GetServiceCapability(userID, CableBeachServices.FILESYSTEM_GET_FILESYSTEM);
-
-            m_log.Debug("[CABLE BEACH INVENTORY]: GetUserInventory(callback), Capability=" + getFilesystemUri);
-
-            if (getFilesystemUri != null)
-            {
-                GetInventoryMessage get = new GetInventoryMessage();
-                get.Identity = identity;
-                get.AgentID = userID;
-
-                CapsClient request = new CapsClient(getFilesystemUri);
-                OSDMap response = request.GetResponse(get.Serialize(), OSDFormat.Json, REQUEST_TIMEOUT) as OSDMap;
-
-                if (response != null)
-                {
-                    GetInventoryReplyMessage reply = new GetInventoryReplyMessage();
-                    reply.Deserialize(response);
-
-                    Dictionary<UUID, InventoryFolderImpl> folders = new Dictionary<UUID, InventoryFolderImpl>();
-                    List<InventoryItemBase> items = new List<InventoryItemBase>();
-
-                    // Convert the incoming array of inventory objects to separate collections of folders and items
-                    for (int i = 0; i < reply.Objects.Length; i++)
-                    {
-                        InventoryBlock obj = reply.Objects[i];
-
-                        if (obj is InventoryBlockFolder)
-                        {
-                            InventoryBlockFolder folderObj = (InventoryBlockFolder)obj;
-                            InventoryFolderImpl folder = BlockToFolder(folderObj);
-                            folders[folder.ID] = folder;
-                        }
-                        else
-                        {
-                            InventoryBlockItem itemObj = (InventoryBlockItem)obj;
-                            InventoryItemBase item = BlockToItem(itemObj);
-                            items.Add(item);
-                        }
-                    }
-
-                    m_log.Debug("[CABLE BEACH INVENTORY]: Fetched " + folders.Count + " folders and " + items.Count + " items for " + userID);
-                    callback(folders.Values, items);
-                }
-                else
-                {
-                    m_log.Error("[CABLE BEACH INVENTORY]: Failed to retrieve filesystem for " + userID + " from " + getFilesystemUri);
-                }
-            }
-            else
-            {
-                m_log.Error("[CABLE BEACH INVENTORY]: Could not find a get_filesystem capability for " + userID);
-            }
+            callback(new List<InventoryFolderImpl>(), new List<InventoryItemBase>());
         }
 
         public InventoryFolderBase GetRootFolder(UUID userID)

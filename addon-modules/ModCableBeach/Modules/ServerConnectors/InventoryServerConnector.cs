@@ -68,16 +68,16 @@ namespace ModCableBeach
                 throw new Exception("Failed to load IInventoryService \"" + inventoryService + "\"");
 
             // Inventory service endpoints
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/create_inventory", new CBCreateInventoryHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/create_object", new CBCreateObjectHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_object", new CBGetObjectHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_inventory_skeleton", new CBGetInventorySkeletonHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_root_folder", new CBGetRootFolderHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/purge_folder", new CBPurgeFolderHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/delete_object", new CBDeleteObjectHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_folder_contents", new CBGetFolderContentsHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_folder_for_type", new CBGetFolderForTypeHandler(m_InventoryService)));
-            server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_active_gestures", new CBGetActiveGesturesHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/create_filesystem", new CBCreateInventoryHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/create_object", new CBCreateObjectHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/get_object", new CBGetObjectHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/get_filesystem_skeleton", new CBGetInventorySkeletonHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/get_root_folder", new CBGetRootFolderHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/purge_folder", new CBPurgeFolderHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/delete_object", new CBDeleteObjectHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/get_folder_contents", new CBGetFolderContentsHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/get_folder_for_type", new CBGetFolderForTypeHandler(m_InventoryService)));
+            server.AddStreamHandler(new TrustedStreamHandler("POST", "/filesystem/get_active_gestures", new CBGetActiveGesturesHandler(m_InventoryService)));
 
             // TODO: Remove these legacy handlers once the UserServer->InventoryServer mess in OpenSim is sorted out
             CheckTrustedSourceMethod nullCheck = delegate(IPEndPoint peer) { return true; };
@@ -838,7 +838,7 @@ namespace ModCableBeach
         List<InventoryFolderBase> LegacyRootFoldersHandler(Guid rawUserID)
         {
             UUID ownerID = new UUID(rawUserID);
-            m_log.Info("[CABLE BEACH INVENTORY]: (Legacy) Fetching full inventory for user " + ownerID);
+            m_log.Info("[CABLE BEACH INVENTORY]: (Legacy) Fetching inventory skeleton for user " + ownerID);
 
             return m_InventoryService.GetInventorySkeleton(ownerID);
         }

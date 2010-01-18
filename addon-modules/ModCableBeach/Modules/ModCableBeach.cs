@@ -81,7 +81,6 @@ namespace ModCableBeach
             DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_CREATE_FILESYSTEM, "/filesystem/create_filesystem");
             DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_CREATE_OBJECT, "/filesystem/create_object");
             DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_GET_ACTIVE_GESTURES, "/filesystem/get_active_gestures");
-            DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_GET_FILESYSTEM, "/filesystem/get_filesystem");
             DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_GET_FILESYSTEM_SKELETON, "/filesystem/get_filesystem_skeleton");
             DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_GET_FOLDER_CONTENTS, "/filesystem/get_folder_contents");
             DEFAULT_CAPS_PATHS.Add(CableBeachServices.FILESYSTEM_GET_FOLDER_FOR_TYPE, "/filesystem/get_folder_for_type");

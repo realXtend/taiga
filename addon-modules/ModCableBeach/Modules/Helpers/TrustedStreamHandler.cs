@@ -26,6 +26,8 @@
  */
 
 using System.IO;
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using OpenSim.Framework.Servers.HttpServer;
 
 namespace ModCableBeach
@@ -44,8 +46,21 @@ namespace ModCableBeach
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
+            if (CheckClientCert(null))
+            {
+                return m_proxiedHandler.Handle(path, request, httpRequest, httpResponse);
+            }
+            else
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.Forbidden;
+                return Utils.EmptyBytes;
+            }
+        }
+
+        bool CheckClientCert(X509Certificate clientCertificate)
+        {
             // FIXME: Implement SSL client certificate checking
-            return m_proxiedHandler.Handle(path, request, httpRequest, httpResponse);
+            return true;
         }
     }
 }
