@@ -259,7 +259,11 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                             }
                         }
 
-                        DoAuthentication(httpResponse, authRequest, claimsRequest, first, last, pass);
+                        if (!DoAuthentication(httpResponse, authRequest, claimsRequest, first, last, pass))
+                        {
+                            m_log.Debug("[CABLE BEACH IDP]: (GET) Sending directed provider login form");
+                            CableBeachState.SendProviderDirectedLoginTemplate(httpResponse, authRequest.Realm.ToString(), httpRequest, postData);
+                        }
                     }
                     else
                     {
@@ -280,7 +284,12 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                                 pass = (postData != null) ? postData["pass"] : null;
                             }
 
-                            DoAuthentication(httpResponse, authRequest, claimsRequest, profile, pass);
+                            if (!DoAuthentication(httpResponse, authRequest, claimsRequest, profile, pass))
+                            {
+                                m_log.Debug("[CABLE BEACH IDP]: (POST) Sending provider login form for " + profile.Name);
+                                CableBeachState.SendProviderLoginTemplate(httpResponse, profile.FirstName, profile.SurName, profile.ID, authRequest.Realm.ToString(),
+                                    httpRequest, postData);
+                            }
                         }
                         else
                         {
@@ -321,16 +330,21 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
             }
         }
 
-        void DoAuthentication(OSHttpResponse httpResponse, DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest,
+        bool DoAuthentication(OSHttpResponse httpResponse, DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest,
             UserProfileData profile, string pass)
         {
+            bool authSuccess = false;
+
             if (!String.IsNullOrEmpty(pass))
             {
-                authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
-                m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
+                authSuccess = CableBeachState.LoginService.AuthenticateUser(profile, pass);
+                m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authSuccess);
 
-                if (authRequest.IsAuthenticated.Value)
+                if (authSuccess)
                 {
+                    // Mark the OpenID request as successfully authenticated
+                    authRequest.IsAuthenticated = true;
+
                     // Cache this login
                     SetCookie(httpResponse, new Uri(authRequest.ClaimedIdentifier), profile);
 
@@ -349,15 +363,18 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
             }
             else
             {
-                // Valid POST but missing the password field, send the login form
+                // Valid POST but missing the password field
                 m_log.Warn("[CABLE BEACH IDP]: POST is missing pass field for " + profile.Name);
-                authRequest.IsAuthenticated = false;
             }
+
+            return authSuccess;
         }
 
-        void DoAuthentication(OSHttpResponse httpResponse, DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest,
+        bool DoAuthentication(OSHttpResponse httpResponse, DotNetOpenAuth.OpenId.Provider.IAuthenticationRequest authRequest, ClaimsRequest claimsRequest,
             string first, string last, string pass)
         {
+            bool authSuccess = false;
+
             if (!String.IsNullOrEmpty(first) && !String.IsNullOrEmpty(last) && !String.IsNullOrEmpty(pass))
             {
                 UserProfileData profile;
@@ -367,11 +384,14 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     Uri identity = new Uri(CableBeachState.UserServerUrl, String.Format("/users/{0}.{1}", profile.FirstName, profile.SurName));
                     authRequest.ClaimedIdentifier = identity;
 
-                    authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, pass);
+                    authSuccess = CableBeachState.LoginService.AuthenticateUser(profile, pass);
                     m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
 
-                    if (authRequest.IsAuthenticated.Value)
+                    if (authSuccess)
                     {
+                        // Mark the OpenID request as successfully authenticated
+                        authRequest.IsAuthenticated = true;
+
                         // Cache this login
                         SetCookie(httpResponse, identity, profile);
 
@@ -391,15 +411,15 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                 else
                 {
                     m_log.Warn("[CABLE BEACH IDP]: Profile for user " + first + " " + last + " not found");
-                    authRequest.IsAuthenticated = false;
                 }
             }
             else
             {
-                // Valid POST but missing one or more fields, send the login form
+                // Valid POST but missing one or more fields
                 m_log.Warn("[CABLE BEACH IDP]: POST is missing first, last, or pass field, sending directed login form");
-                authRequest.IsAuthenticated = false;
             }
+
+            return authSuccess;
         }
 
         void SetCookie(OSHttpResponse httpResponse, Uri identity, UserProfileData profile)

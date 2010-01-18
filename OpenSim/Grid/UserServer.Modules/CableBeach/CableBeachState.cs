@@ -205,6 +205,8 @@ namespace OpenSim.Grid.UserServer.Modules
         /// capability</summary>
         public const int SEED_CAP_TIMEOUT = 1000 * 30;
 
+        const string IDENTITY_MAP_SCOPE = "CableBeach.IdentityMap";
+
         const string ROOT_TEMPLATE_FILE = "webtemplates/userserver_homepage.tpl";
         const string LOGIN_TEMPLATE_FILE = "webtemplates/userserver_cablebeachlogin.tpl";
         const string LOGIN_SUCCESS_TEMPLATE_FILE = "webtemplates/userserver_cablebeachloginsuccess.tpl";
@@ -372,12 +374,20 @@ namespace OpenSim.Grid.UserServer.Modules
 
             if (profile == null)
             {
-                // Try to look this user up by the UUID that would have been created from the identity URL
-                profile = LoginService.UserManager.GetUserProfile(CableBeachUtils.IdentityToUUID(identity));
+                // Try to look this identity up in the identity->uuid map (held in the generic data store)
+                string uuidStr = GenericData.Get(IDENTITY_MAP_SCOPE, identity.ToString());
+
+                UUID profileID;
+                if (!String.IsNullOrEmpty(uuidStr) && UUID.TryParse(uuidStr, out profileID))
+                    profile = LoginService.UserManager.GetUserProfile(profileID);
             }
 
             if (profile == null)
             {
+                // FIXME: Use policy logic here instead of always creating a new user
+
+                #region New User Creation
+
                 // No profile found yet, create a new user
 
                 // Build a name from the given first and last name (if any) and the identity URL
@@ -422,9 +432,16 @@ namespace OpenSim.Grid.UserServer.Modules
                     m_log.Error("[CABLE BEACH LOGIN]: Error while creating new user: " + ex.Message);
                 }
 
-                // Try to fetch the newly created profile
                 if (agentID != UUID.Zero)
+                {
+                    // Try to fetch the newly created profile
                     profile = LoginService.UserManager.GetUserProfile(agentID);
+
+                    // Add an identity->uuid map to the generic store
+                    GenericData.Store(IDENTITY_MAP_SCOPE, identity.ToString(), agentID.ToString());
+                }
+
+                #endregion New User Creation
             }
 
             return (profile != null);
