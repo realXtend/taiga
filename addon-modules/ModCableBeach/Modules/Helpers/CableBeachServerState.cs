@@ -87,7 +87,9 @@ namespace ModCableBeach
         public const string CABLE_BEACH_CAPS_PATH = "/caps/cablebeach/";
 
         /// <summary>Number of minutes a capability can go unused before timing out. Default is 12 hours</summary>
-        const int CAPABILITY_TIMEOUT_MINUTES = 60 * 12;
+        public const int CAPABILITY_TIMEOUT_MINUTES = 60 * 12;
+
+        public const int OAUTH_OPENID_LOGIN_TIMEOUT_MINUTES = 10;
 
         #endregion Constants
 
@@ -98,12 +100,14 @@ namespace ModCableBeach
         /// <summary>Holds active capabilities, mapping from capability UUID to
         /// callback and session information</summary>
         public static ExpiringCache<UUID, Capability> Capabilities = new ExpiringCache<UUID, Capability>();
+        public static Uri ServiceUrl;
         public static Uri OpenIDProviderUrl;
         public static OpenIdRelyingParty OpenIDRelyingParty = new OpenIdRelyingParty(new StandardRelyingPartyApplicationStore());
         public static InMemoryProviderTokenManager OAuthTokenManager = new InMemoryProviderTokenManager();
         public static OAuthServiceProvider OAuthServiceProvider;
-        public static DoubleDictionary<Uri, string, OAuthRequest> OAuthCurrentRequests = new DoubleDictionary<Uri, string, OAuthRequest>();
+        public static ExpiringCache<string, OAuthRequest> OAuthCurrentRequests = new ExpiringCache<string, OAuthRequest>();
         public static string ServiceRootTemplateFile;
+        public static string PermissionGrantTemplateFile;
 
         /// <summary>Holds callbacks for each registered Cable Beach service to
         /// create capabilities on an incoming capability request</summary>
@@ -173,7 +177,32 @@ namespace ModCableBeach
 
             try { output = WebTemplates.Render(ServiceRootTemplateFile, variables); }
             catch (Exception) { }
-            if (output == null) { output = "Failed to render template " + ServiceRootTemplateFile; }
+            if (output == null)
+            {
+                Log.Error("Failed to render template " + ServiceRootTemplateFile);
+                output = "Failed to render template " + ServiceRootTemplateFile;
+            }
+
+            return Encoding.UTF8.GetBytes(output);
+        }
+
+        public static byte[] BuildPermissionGrantTemplate(OAuthRequest oauthRequest)
+        {
+            string output = null;
+            Dictionary<string, object> variables = new Dictionary<string, object>();
+            variables["identity"] = oauthRequest.Identity;
+            variables["callback"] = oauthRequest.Request.Callback;
+            variables["request_token"] = oauthRequest.Request.RequestToken;
+            variables["consumer"] = oauthRequest.Request.Callback.Authority;
+            variables["capabilities"] = oauthRequest.CapabilityNames;
+
+            try { output = WebTemplates.Render(PermissionGrantTemplateFile, variables); }
+            catch (Exception) { }
+            if (output == null)
+            {
+                Log.Error("Failed to render template " + PermissionGrantTemplateFile);
+                output = "Failed to render template " + PermissionGrantTemplateFile;
+            }
 
             return Encoding.UTF8.GetBytes(output);
         }
