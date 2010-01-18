@@ -71,6 +71,8 @@ namespace OpenSim.Grid.UserServer.Modules
 
         protected BaseHttpServer m_httpServer;
 
+        public IRegionProfileRouter RegionProfileService { get { return m_regionProfileService; } }
+
         public UserLoginService(
             UserManagerBase userManager, IInterServiceInventoryServices inventoryService,
             LibraryRootFolder libraryRootFolder,
@@ -100,13 +102,31 @@ namespace OpenSim.Grid.UserServer.Modules
                 m_httpServer.SetDefaultLLSDHandler(LLSDLoginMethod);
             }
 
+            // Handler for the root page
+            m_httpServer.AddStreamHandler(new RootPageStreamHandler("GET", "/", this));
+
+            if (!String.IsNullOrEmpty(m_config.ContentFilePath))
+            {
+                // Handler for misc. web content
+                m_httpServer.AddStreamHandler(new FilesystemStreamHandler("GET", "/content/", m_config.ContentFilePath, this));
+            }
+
             if (registerOpenIDHandlers)
             {
+                CableBeachLoginService loginService = new CableBeachLoginService(this.UserManager, this.InterInventoryService,
+                    this.LibraryRootFolder, this.m_config, this.WelcomeMessage, this.RegionProfileService);
+                CableBeachState.LoginService = loginService;
+
                 // Handler for OpenID avatar identity pages
-                m_httpServer.AddStreamHandler(new OpenIdStreamHandler("GET", "/users/", this));
+                m_httpServer.AddStreamHandler(new OpenIdProviderStreamHandler("GET", "/users/", this));
                 // Handlers for the OpenID endpoint server
-                m_httpServer.AddStreamHandler(new OpenIdStreamHandler("POST", "/openid/server/", this));
-                m_httpServer.AddStreamHandler(new OpenIdStreamHandler("GET", "/openid/server/", this));
+                m_httpServer.AddStreamHandler(new OpenIdProviderStreamHandler("POST", "/openid/server/", this));
+                m_httpServer.AddStreamHandler(new OpenIdProviderStreamHandler("GET", "/openid/server/", this));
+                // Handler for the Facebook Connect login path
+                m_httpServer.AddStreamHandler(new FacebookStreamHandler("GET", "/facebook/login/", this));
+                // Handlers for the Cable Beach login page
+                m_httpServer.AddStreamHandler(new OpenIdLoginStreamHandler("POST", "/login", this));
+                m_httpServer.AddStreamHandler(new OpenIdLoginStreamHandler("GET", "/login", this));
             }
         }
 
