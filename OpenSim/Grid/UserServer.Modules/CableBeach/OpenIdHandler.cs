@@ -500,6 +500,8 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
 
                     try
                     {
+                        m_log.Info("[CABLE BEACH LOGIN]: Starting OpenID auth request for " + identity);
+
                         DotNetOpenAuth.OpenId.RelyingParty.IAuthenticationRequest authRequest =
                             CableBeachState.RelyingParty.CreateRequest(identifier, realm, new Uri(httpRequest.Url, "/login/openid_callback"));
 
@@ -531,16 +533,19 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                     }
                     catch (Exception ex)
                     {
+                        m_log.Error("[CABLE BEACH LOGIN]: OpenID login failed: " + ex.Message, ex);
                         CableBeachState.SendLoginTemplate(httpResponse, null, "OpenID login failed: " + ex.Message);
                     }
                 }
                 else
                 {
+                    m_log.Warn("[CABLE BEACH LOGIN]: Identity " + identity + " was denied access");
                     CableBeachState.SendLoginTemplate(httpResponse, null, identity + " is not authorized to access this world");
                 }
             }
             else
             {
+                m_log.Warn("[CABLE BEACH LOGIN]: Received a POST with an empty OpenID URL field");
                 CableBeachState.SendLoginTemplate(httpResponse, null, "Please fill in the OpenID URL field");
             }
         }
