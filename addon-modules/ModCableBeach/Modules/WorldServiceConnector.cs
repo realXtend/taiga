@@ -213,9 +213,9 @@ namespace ModCableBeach
                 ILandObject land = Scene.LandChannel.GetLandObject(agent.startpos.X, agent.startpos.Y);
                 if (land != null)
                 {
-                    if (land.landData.LandingType == (byte)1 && land.landData.UserLocation != Vector3.Zero)
+                    if (land.LandData.LandingType == (byte)1 && land.LandData.UserLocation != Vector3.Zero)
                     {
-                        agent.startpos = land.landData.UserLocation;
+                        agent.startpos = land.LandData.UserLocation;
                     }
                 }
             }

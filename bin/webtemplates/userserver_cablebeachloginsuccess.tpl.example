@@ -1,0 +1,10 @@
+<html>
+<head><title>Login succeeded</title></head>
+<body>
+<h3>{$identity}</h3>
+If you have the Cable Beach launcher installed, use this link:</br>
+<strong><a href="{$cb_login_uri}">Login</a></strong><br/>
+<br/>
+Otherwise, launch your viewer with: <pre>-loginuri {$login_uri}</pre>
+</body>
+</html>

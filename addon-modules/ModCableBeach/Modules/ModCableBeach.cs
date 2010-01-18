@@ -237,7 +237,7 @@ namespace ModCableBeach
                     userProfile.Partner = GetUUIDAttribute(message.Attributes, AvatarAttributes.PARTNER_ID);
                     userProfile.PasswordHash = "$1$";
                     userProfile.PasswordSalt = String.Empty;
-                    userProfile.RootInventoryFolderID = GetUUIDAttribute(message.Attributes, AvatarAttributes.DEFAULT_INVENTORY);
+
                     userProfile.SurName = agentData.lastname;
                     userProfile.UserFlags = GetIntegerAttribute(message.Attributes, AvatarAttributes.USER_FLAGS);
                     userProfile.WantDoMask = (uint)GetIntegerAttribute(message.Attributes, AvatarAttributes.WANT_DO);

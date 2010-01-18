@@ -1,0 +1,21 @@
+<html>
+<head><title>OpenSim Login</title></head>
+<body>
+<h3>OpenSim Login</h3>
+
+{if $has_error}
+<div class="error">{$error}</div>
+<br/>
+{/if}
+
+{if $has_message}
+<div class="message">{$message}</div>
+<br/>
+{/if}
+
+<form method="post" action="/login">
+<label for="openid_identifier">OpenID URL:</label> <input type="text" name="openid_identifier" id="openid_identifier" value="" />
+<input type="submit" value="Login">
+</form>
+</body>
+</html>

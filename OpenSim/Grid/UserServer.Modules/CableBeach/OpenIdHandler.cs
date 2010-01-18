@@ -650,7 +650,6 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         InventoryRootHash["folder_id"] = skeleton.RootFolderID.ToString();
                         ArrayList InventoryRoot = new ArrayList();
                         InventoryRoot.Add(InventoryRootHash);
-                        userProfile.RootInventoryFolderID = skeleton.RootFolderID;
 
                         logResponse.InventoryRoot = InventoryRoot;
                         logResponse.InventorySkeleton = AgentInventoryArray;
