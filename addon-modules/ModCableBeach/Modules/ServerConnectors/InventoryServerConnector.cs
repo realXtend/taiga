@@ -43,13 +43,10 @@ using CableBeachMessages;
 
 namespace ModCableBeach
 {
-    public static class InventoryLogger
-    {
-        public static readonly ILog Log = LogManager.GetLogger("CableBeachInventoryServer");
-    }
-
     public class InventoryServerConnector : ServiceConnector
     {
+        private static readonly ILog m_log = LogManager.GetLogger("CableBeachInventoryServer");
+
         private IInventoryService m_InventoryService;
 
         public InventoryServerConnector(IConfigSource config, IHttpServer server) :
@@ -70,6 +67,7 @@ namespace ModCableBeach
             if (m_InventoryService == null)
                 throw new Exception("Failed to load IInventoryService \"" + inventoryService + "\"");
 
+            // Inventory service endpoints
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/create_inventory", new CBCreateInventoryHandler(m_InventoryService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/create_object", new CBCreateObjectHandler(m_InventoryService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_object", new CBGetObjectHandler(m_InventoryService)));
@@ -80,6 +78,58 @@ namespace ModCableBeach
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_folder_contents", new CBGetFolderContentsHandler(m_InventoryService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_folder_for_type", new CBGetFolderForTypeHandler(m_InventoryService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/inventory/get_active_gestures", new CBGetActiveGesturesHandler(m_InventoryService)));
+
+            // Register this server connector as a Cable Beach service
+            CableBeachServerState.RegisterService(new Uri(CableBeachServices.FILESYSTEM), CreateCapabilitiesHandler);
+        }
+
+        void CreateCapabilitiesHandler(Uri requestUrl, UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities)
+        {
+            Uri[] caps = new Uri[capabilities.Count];
+            capabilities.Keys.CopyTo(caps, 0);
+
+            for (int i = 0; i < caps.Length; i++)
+            {
+                Uri cap = caps[i];
+                string capName = cap.ToString();
+
+                switch (capName)
+                {
+                    case CableBeachServices.FILESYSTEM_CREATE_FILESYSTEM:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBCreateInventoryHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_CREATE_OBJECT:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBCreateObjectHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_OBJECT:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetObjectHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_FILESYSTEM_SKELETON:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetInventorySkeletonHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_FILESYSTEM:
+                        m_log.Error("[CABLE BEACH INVENTORY]: Got a request for deprecated get_filesystem capability");
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_ROOT_FOLDER:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetRootFolderHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_PURGE_FOLDER:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBPurgeFolderHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_DELETE_OBJECT:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBDeleteObjectHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_FOLDER_CONTENTS:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetFolderContentsHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_FOLDER_FOR_TYPE:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetFolderForTypeHandler(m_InventoryService), false, identity);
+                        break;
+                    case CableBeachServices.FILESYSTEM_GET_ACTIVE_GESTURES:
+                        capabilities[cap] = CableBeachServerState.CreateCapability(requestUrl, sessionID, new CBGetActiveGesturesHandler(m_InventoryService), false, identity);
+                        break;
+                }
+            }
         }
 
         public class CBCreateInventoryHandler : BaseStreamHandler
@@ -107,13 +157,13 @@ namespace ModCableBeach
                     if (!m_InventoryService.HasInventoryForUser(ownerID))
                     {
                         if (m_InventoryService.CreateUserInventory(ownerID))
-                            InventoryLogger.Log.Info("[CABLE BEACH INVENTORY]: create_inventory succeeded for user " + ownerID);
+                            m_log.Info("[CABLE BEACH INVENTORY]: create_inventory succeeded for user " + ownerID);
                         else
-                            InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: create_inventory failed for user " + ownerID);
+                            m_log.Error("[CABLE BEACH INVENTORY]: create_inventory failed for user " + ownerID);
                     }
                     else
                     {
-                        InventoryLogger.Log.Warn("[CABLE BEACH INVENTORY]: create_inventory called for user " + ownerID + " who already has an inventory");
+                        m_log.Warn("[CABLE BEACH INVENTORY]: create_inventory called for user " + ownerID + " who already has an inventory");
                     }
 
                     InventoryFolderBase rootFolder = m_InventoryService.GetRootFolder(ownerID);
@@ -124,7 +174,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: create_inventory called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: create_inventory called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -227,7 +277,7 @@ namespace ModCableBeach
 
                             if (!reply.Success)
                             {
-                                InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: AddItem failed for item " + item.ID);
+                                m_log.Error("[CABLE BEACH INVENTORY]: AddItem failed for item " + item.ID);
                                 reply.Message = "item creation failed";
                             }
                         }
@@ -237,7 +287,7 @@ namespace ModCableBeach
 
                             if (!reply.Success)
                             {
-                                InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: UpdateItem failed for item " + item.ID);
+                                m_log.Error("[CABLE BEACH INVENTORY]: UpdateItem failed for item " + item.ID);
                                 reply.Message = "item update failed";
                             }
                         }
@@ -298,7 +348,7 @@ namespace ModCableBeach
 
                             if (!reply.Success)
                             {
-                                InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: AddFolder failed for folder " + folder.ID);
+                                m_log.Error("[CABLE BEACH INVENTORY]: AddFolder failed for folder " + folder.ID);
                                 reply.Message = "folder creation failed";
                             }
                         }
@@ -308,7 +358,7 @@ namespace ModCableBeach
 
                             if (!reply.Success)
                             {
-                                InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: UpdateFolder failed for folder " + folder.ID);
+                                m_log.Error("[CABLE BEACH INVENTORY]: UpdateFolder failed for folder " + folder.ID);
                                 reply.Message = "folder update failed";
                             }
                         }
@@ -317,7 +367,7 @@ namespace ModCableBeach
                     }
                     else
                     {
-                        InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: create_object called with unrecognized object");
+                        m_log.Error("[CABLE BEACH INVENTORY]: create_object called with unrecognized object");
                         httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                         return Utils.EmptyBytes;
                     }
@@ -326,7 +376,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: create_object called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: create_object called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -373,7 +423,7 @@ namespace ModCableBeach
                         }
                         else
                         {
-                            InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_object could not find item or folder " + message.ObjectID);
+                            m_log.Error("[CABLE BEACH INVENTORY]: get_object could not find item or folder " + message.ObjectID);
                             reply.Message = "item or folder not found";
                         }
                     }
@@ -382,7 +432,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_object called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: get_object called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -438,7 +488,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_inventory_skeleton called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: get_inventory_skeleton called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -476,7 +526,7 @@ namespace ModCableBeach
                     }
                     else
                     {
-                        InventoryLogger.Log.Warn("[CABLE BEACH INVENTORY]: No root folder found for user " + ownerID);
+                        m_log.Warn("[CABLE BEACH INVENTORY]: No root folder found for user " + ownerID);
                         reply.Message = "failed to find root folder for user " + ownerID;
                     }
 
@@ -484,7 +534,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_root_folder called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: get_root_folder called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -518,7 +568,7 @@ namespace ModCableBeach
 
                     if (!reply.Success)
                     {
-                        InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: Failed to purge folder " + folder.ID + " for user " + folder.Owner);
+                        m_log.Error("[CABLE BEACH INVENTORY]: Failed to purge folder " + folder.ID + " for user " + folder.Owner);
                         reply.Message = "failed to purge folder " + folder.ID + " for user " + folder.Owner;
                     }
 
@@ -526,7 +576,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: purge_folder called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: purge_folder called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -563,7 +613,7 @@ namespace ModCableBeach
 
                         if (!reply.Success)
                         {
-                            InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: failed to delete folder " + message.ObjectID);
+                            m_log.Error("[CABLE BEACH INVENTORY]: failed to delete folder " + message.ObjectID);
                             reply.Message = "failed to delete folder";
                         }
                     }
@@ -573,7 +623,7 @@ namespace ModCableBeach
 
                         if (!reply.Success)
                         {
-                            InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: failed to delete item " + message.ObjectID);
+                            m_log.Error("[CABLE BEACH INVENTORY]: failed to delete item " + message.ObjectID);
                             reply.Message = "failed to delete item";
                         }
                     }
@@ -582,7 +632,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: delete_object called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: delete_object called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -633,7 +683,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_folder_contents called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: get_folder_contents called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -675,7 +725,7 @@ namespace ModCableBeach
                     }
                     else
                     {
-                        InventoryLogger.Log.Warn("[CABLE BEACH INVENTORY]: get_folder_for_type did not return a folder for user " +
+                        m_log.Warn("[CABLE BEACH INVENTORY]: get_folder_for_type did not return a folder for user " +
                             ownerID + ", content type " + message.ContentType);
                     }
 
@@ -683,7 +733,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_folder_for_type called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: get_folder_for_type called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }
@@ -733,13 +783,13 @@ namespace ModCableBeach
                         reply.Gestures = new GetActiveGesturesReplyMessage.Gesture[0];
                     }
 
-                    InventoryLogger.Log.Debug("[CABLE BEACH INVENTORY]: get_active_gestures responding with " +
+                    m_log.Debug("[CABLE BEACH INVENTORY]: get_active_gestures responding with " +
                         reply.Gestures.Length + " active gestures for " + ownerID);
                     return ServiceHelper.MakeResponse(httpResponse, reply.Serialize());
                 }
                 else
                 {
-                    InventoryLogger.Log.Error("[CABLE BEACH INVENTORY]: get_active_gestures called with invalid data");
+                    m_log.Error("[CABLE BEACH INVENTORY]: get_active_gestures called with invalid data");
                     httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return Utils.EmptyBytes;
                 }

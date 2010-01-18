@@ -37,9 +37,18 @@ using OpenSim.Services.Interfaces;
 using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Server.Handlers.Base;
+using DotNetOpenAuth.Messaging;
+using DotNetOpenAuth.OAuth;
+using DotNetOpenAuth.OAuth.ChannelElements;
+using DotNetOpenAuth.OAuth.Messages;
+using DotNetOpenAuth.OpenId;
+using DotNetOpenAuth.OpenId.ChannelElements;
+using DotNetOpenAuth.OpenId.RelyingParty;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
 using CableBeachMessages;
+
+using OAuthServiceProvider = DotNetOpenAuth.OAuth.ServiceProvider;
 
 namespace ModCableBeach
 {
@@ -48,7 +57,39 @@ namespace ModCableBeach
         public CableBeachServerConnector(IConfigSource config, IHttpServer server) :
             base(config, server)
         {
-            // Front page of the inventory server and the XRD document
+            Uri httpBaseUri;
+
+            #region Config Loading
+
+            IConfig serverConfig = config.Configs["CableBeachService"];
+            if (serverConfig == null)
+                throw new Exception("No [CableBeachService] section in config file");
+
+            string serviceUrl = serverConfig.GetString("ServiceUrl", String.Empty);
+            if (String.IsNullOrEmpty(serviceUrl))
+                throw new Exception("No ServiceUrl in [CableBeachService] section in config file");
+            if (!Uri.TryCreate(serviceUrl, UriKind.Absolute, out httpBaseUri))
+                throw new Exception("Invalid ServiceUrl in [CableBeachService] section in config file");
+
+            string openidProvider = serverConfig.GetString("OpenIDProvider", String.Empty);
+            if (String.IsNullOrEmpty(openidProvider))
+                throw new Exception("No OpenIDProvider in [CableBeachService] section in config file");
+            if (!Uri.TryCreate(openidProvider, UriKind.Absolute, out CableBeachServerState.OpenIDProviderUrl))
+                throw new Exception("Invalid OpenIDProvider in [CableBeachService] section in config file");
+
+            CableBeachServerState.ServiceRootTemplateFile = serverConfig.GetString("RootPageTemplateFile", String.Empty);
+            if (String.IsNullOrEmpty(CableBeachServerState.ServiceRootTemplateFile))
+                throw new Exception("No RootPageTemplateFile in [CableBeachService] section in config file");
+
+            #endregion Config Loading
+
+            // Initialize the OAuth ServiceProvider for this set of services
+            CableBeachServerState.OAuthServiceProvider = new OAuthServiceProvider(
+                OpenAuthHelper.CreateServiceProviderDescription(httpBaseUri), CableBeachServerState.OAuthTokenManager);
+
+            #region HTTP Handlers
+
+            // Front page of the service and the XRD document
             server.AddStreamHandler(new CBRootPageHandler("GET", "/"));
             server.AddStreamHandler(new CBXrdDocumentHandler("GET", "/xrd"));
 
@@ -59,13 +100,21 @@ namespace ModCableBeach
             server.AddStreamHandler(new CapabilityStreamHandler("POST", CableBeachServerState.CABLE_BEACH_CAPS_PATH));
 
             // OAuth endpoints
-            CBOAuthGetRequestTokenHandler getRequestTokenHandler = new CBOAuthGetRequestTokenHandler("GET", "/oauth/get_request_token");
-            CBOAuthAuthorizeTokenHandler authorizeTokenHandler = new CBOAuthAuthorizeTokenHandler("GET", "/oauth/authorize_token");
-            CBOAuthGetAccessTokenHandler getAccessTokenHandler = new CBOAuthGetAccessTokenHandler("GET", "/oauth/get_access_token");
-
             server.AddStreamHandler(new CBOAuthGetRequestTokenHandler("GET", "/oauth/get_request_token"));
             server.AddStreamHandler(new CBOAuthAuthorizeTokenHandler("GET", "/oauth/authorize_token"));
             server.AddStreamHandler(new CBOAuthGetAccessTokenHandler("GET", "/oauth/get_access_token"));
+
+            server.AddStreamHandler(new CBOAuthGetRequestTokenHandler("POST", "/oauth/get_request_token"));
+            server.AddStreamHandler(new CBOAuthAuthorizeTokenHandler("POST", "/oauth/authorize_token"));
+            server.AddStreamHandler(new CBOAuthGetAccessTokenHandler("POST", "/oauth/get_access_token"));
+
+            // OpenID callback endpoint
+            server.AddStreamHandler(new CBOpenIDCallbackHandler("GET", "/oauth/openid_callback"));
+
+            // Permission grant form endpoint
+            server.AddStreamHandler(new CBPermissionGrantFormHandler("POST", "/oauth/user_authorize"));
+
+            #endregion HTTP Handlers
         }
     }
 
@@ -89,6 +138,11 @@ namespace ModCableBeach
             Capability cap;
             if (CableBeachServerState.Capabilities.TryGetValue(requestID, out cap))
             {
+                if (cap.ClientCertRequired)
+                {
+                    // TODO: Implement this
+                }
+
                 return cap.HttpHandler.Handle(path, request, httpRequest, httpResponse);
             }
             else
@@ -110,7 +164,7 @@ namespace ModCableBeach
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
             httpResponse.ContentType = "text/html";
-            return CableBeachServerState.BuildInventoryRootPageTemplate(new Uri(httpRequest.Url, "/xrd").ToString());
+            return CableBeachServerState.BuildServiceRootPageTemplate(new Uri(httpRequest.Url, "/xrd").ToString());
         }
     }
 
@@ -192,6 +246,8 @@ namespace ModCableBeach
         }
     }
 
+    #region OAuth Endpoints
+
     public class CBOAuthGetRequestTokenHandler : BaseStreamHandler
     {
         public CBOAuthGetRequestTokenHandler(string httpMethod, string path) :
@@ -201,6 +257,23 @@ namespace ModCableBeach
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
+            UnauthorizedTokenRequest tokenRequest = null;
+            try { tokenRequest = CableBeachServerState.OAuthServiceProvider.ReadTokenRequest(OpenAuthHelper.GetRequestInfo(httpRequest)); }
+            catch (Exception ex) { CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: Error parsing get_request_token request: " + ex.Message, ex); }
+
+            if (tokenRequest != null)
+            {
+                // TODO: If we wanted to support whitelisting/blacklisting worlds, we could do so here with
+                // tokenRequest.ConsumerKey
+
+                UnauthorizedTokenResponse tokenResponse = CableBeachServerState.OAuthServiceProvider.PrepareUnauthorizedTokenMessage(tokenRequest);
+                return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, CableBeachServerState.OAuthServiceProvider.Channel.PrepareResponse(tokenResponse));
+            }
+            else
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                return Utils.EmptyBytes;
+            }
         }
     }
 
@@ -213,6 +286,71 @@ namespace ModCableBeach
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
+            HttpRequestInfo requestInfo = OpenAuthHelper.GetRequestInfo(httpRequest);
+
+            try
+            {
+                UserAuthorizationRequest oauthRequest = CableBeachServerState.OAuthServiceProvider.ReadAuthorizationRequest(requestInfo);
+
+                if (oauthRequest != null && oauthRequest.ExtraData != null)
+                {
+                    IServiceProviderRequestToken requestToken = CableBeachServerState.OAuthTokenManager.GetRequestToken(oauthRequest.RequestToken);
+                    if (requestToken.Callback != null)
+                        oauthRequest.Callback = requestToken.Callback;
+
+                    if (oauthRequest.Callback != null)
+                    {
+                        string capNameList;
+                        if (oauthRequest.ExtraData.TryGetValue("cb_capabilities", out capNameList))
+                        {
+                            // Redirect the user to do an OpenID login through our trusted identity provider
+                            Realm realm = new Realm(new Uri(httpRequest.Url, "/"));
+
+                            try
+                            {
+                                Identifier identifier;
+                                Identifier.TryParse(CableBeachServerState.OpenIDProviderUrl.ToString(), out identifier);
+
+                                IAuthenticationRequest authRequest = CableBeachServerState.OpenIDRelyingParty.CreateRequest(
+                                    identifier, realm, new Uri(httpRequest.Url, "/oauth/openid_callback"));
+                                return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, authRequest.RedirectingResponse);
+                            }
+                            catch (Exception ex)
+                            {
+                                CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: OpenID authentication failed: " + ex.Message, ex);
+                                httpResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
+                                return Encoding.UTF8.GetBytes("OpenID authentication failed: " + ex.Message);
+                            }
+                        }
+                        else
+                        {
+                            // No capabilities were requested
+                            CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: Got an OAuth request with no capabilities being requested");
+                            httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                            return Encoding.UTF8.GetBytes("Unknown capabilities");
+                        }
+                    }
+                    else
+                    {
+                        // No callback was given
+                        CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: Got an OAuth request with no callback");
+                        httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                        return Encoding.UTF8.GetBytes("Missing or invalid OAuth callback");
+                    }
+                }
+                else
+                {
+                    CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: authorize_token called with missing or invalid OAuth request");
+                    httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                    return Encoding.UTF8.GetBytes("Missing or invalid OAuth request");
+                }
+            }
+            catch (Exception ex)
+            {
+                CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: authorize_token called with invalid data");
+                httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                return Encoding.UTF8.GetBytes("Failed to handle OAuth request: " + ex.Message);
+            }
         }
     }
 
@@ -225,6 +363,86 @@ namespace ModCableBeach
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
+            AuthorizedTokenRequest tokenRequest = null;
+            try { tokenRequest = CableBeachServerState.OAuthServiceProvider.ReadAccessTokenRequest(OpenAuthHelper.GetRequestInfo(httpRequest)); }
+            catch (Exception ex) { CableBeachServerState.Log.Error("[CABLE BEACH SERVER]: Error parsing get_access_token request: " + ex.Message, ex); }
+
+            OAuthRequest oauthRequest;
+            if (tokenRequest != null && (CableBeachServerState.OAuthCurrentRequests.TryGetValue(tokenRequest.RequestToken, out oauthRequest)))
+            {
+                // Remove this request from the dictionary of currently tracked requests
+                CableBeachServerState.OAuthCurrentRequests.Remove(oauthRequest.Identity, oauthRequest.Request.RequestToken);
+
+                AuthorizedTokenResponse tokenResponse = CableBeachServerState.OAuthServiceProvider.PrepareAccessTokenMessage(tokenRequest);
+
+                // Get the list of requested capabilities that was sent earlier
+                Dictionary<Uri, Uri> capabilities = new Dictionary<Uri, Uri>(oauthRequest.CapabilityNames.Length);
+                for (int i = 0; i < oauthRequest.CapabilityNames.Length; i++)
+                {
+                    Uri serviceIdentifier;
+                    if (Uri.TryCreate(oauthRequest.CapabilityNames[i], UriKind.Absolute, out serviceIdentifier))
+                        capabilities[serviceIdentifier] = null;
+                    else
+                        CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: Unrecognized service identifier in capability request: " + oauthRequest.CapabilityNames[i]);
+                }
+
+                // Allow each registered service to attempt to fill in the capabilities request
+                CableBeachServerState.CreateCapabilities(httpRequest.Url, oauthRequest.Identity, ref capabilities);
+
+                // Convert the list of capabilities into <string,string> tuples, leaving out requests with empty values
+                Dictionary<string, string> capStrings = new Dictionary<string, string>(capabilities.Count);
+                foreach (KeyValuePair<Uri, Uri> entry in capabilities)
+                {
+                    if (entry.Value != null)
+                        capStrings[entry.Key.ToString()] = entry.Value.ToString();
+                    else
+                        CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: Capability was not created for service identifier " + entry.Key);
+                }
+
+                // Put the created capabilities in the OAuth response and send the response
+                tokenResponse.SetExtraData(capStrings);
+                return OpenAuthHelper.MakeOpenAuthResponse(httpResponse, CableBeachServerState.OAuthServiceProvider.Channel.PrepareResponse(tokenResponse));
+            }
+            else
+            {
+                CableBeachServerState.Log.Warn("[CABLE BEACH SERVER]: get_access_token called with invalid or missing request token " + tokenRequest.RequestToken);
+                httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                return Utils.EmptyBytes;
+            }
         }
     }
+
+    #endregion OAuth Endpoints
+
+    #region OAuth Login/Callbacks
+
+    public class CBOpenIDCallbackHandler : BaseStreamHandler
+    {
+        public CBOpenIDCallbackHandler(string httpMethod, string path) :
+            base(httpMethod, path)
+        {
+        }
+
+        public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            // FIXME:
+            return null;
+        }
+    }
+
+    public class CBPermissionGrantFormHandler : BaseStreamHandler
+    {
+        public CBPermissionGrantFormHandler(string httpMethod, string path) :
+            base(httpMethod, path)
+        {
+        }
+
+        public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            // FIXME:
+            return null;
+        }
+    }
+
+    #endregion OAuth Login/Callbacks
 }

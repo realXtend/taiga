@@ -42,11 +42,6 @@ using CableBeachMessages;
 
 namespace ModCableBeach
 {
-    public static class AssetLogger
-    {
-        public static readonly ILog Log = LogManager.GetLogger("CableBeachAssetServer");
-    }
-
     public class AssetServerConnector : ServiceConnector
     {
         private IAssetService m_AssetService;
@@ -69,6 +64,7 @@ namespace ModCableBeach
             if (m_AssetService == null)
                 throw new Exception("Failed to load IAssetService \"" + assetService + "\"");
 
+            // Asset service endpoints
             server.AddStreamHandler(new TrustedStreamHandler("GET", "/assets", new CBAssetServerGetHandler(m_AssetService)));
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/assets", new CBAssetServerPostHandler(m_AssetService)));
             server.AddStreamHandler(new TrustedStreamHandler("DELETE", "/assets", new CBAssetServerDeleteHandler(m_AssetService)));

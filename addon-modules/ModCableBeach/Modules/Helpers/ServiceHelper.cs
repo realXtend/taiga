@@ -26,14 +26,18 @@
  */
 
 using System;
+using System.Collections.Specialized;
 using System.Reflection;
 using System.Text;
+using System.Net;
+using System.Web;
 using log4net;
 using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
+using DotNetOpenAuth.Messaging;
 using CableBeachMessages;
 
 namespace ModCableBeach

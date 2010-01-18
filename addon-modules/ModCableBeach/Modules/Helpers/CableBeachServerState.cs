@@ -30,16 +30,24 @@ using System.Collections.Generic;
 using System.Text;
 using log4net;
 using OpenSim.Framework.Servers.HttpServer;
+using DotNetOpenAuth.Messaging;
+using DotNetOpenAuth.OAuth;
+using DotNetOpenAuth.OAuth.ChannelElements;
+using DotNetOpenAuth.OAuth.Messages;
+using DotNetOpenAuth.OpenId;
+using DotNetOpenAuth.OpenId.ChannelElements;
+using DotNetOpenAuth.OpenId.RelyingParty;
 using OpenMetaverse;
 
 using CapabilityIdentifier = System.Uri;
 using ServiceIdentifier = System.Uri;
+using OAuthServiceProvider = DotNetOpenAuth.OAuth.ServiceProvider;
 
 namespace ModCableBeach
 {
     public delegate void CreateCapabilitiesCallback(Uri requestUrl, UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities);
 
-    class Capability
+    public class Capability
     {
         public UUID CapabilityID;
         public UUID SessionID;
@@ -57,6 +65,20 @@ namespace ModCableBeach
         }
     }
 
+    public class OAuthRequest
+    {
+        public Uri Identity;
+        public UserAuthorizationRequest Request;
+        public string[] CapabilityNames;
+
+        public OAuthRequest(Uri identity, UserAuthorizationRequest request, string[] capabilityNames)
+        {
+            Identity = identity;
+            Request = request;
+            CapabilityNames = capabilityNames;
+        }
+    }
+
     public static class CableBeachServerState
     {
         #region Constants
@@ -67,19 +89,21 @@ namespace ModCableBeach
         /// <summary>Number of minutes a capability can go unused before timing out. Default is 12 hours</summary>
         const int CAPABILITY_TIMEOUT_MINUTES = 60 * 12;
 
-        const string ROOT_PAGE_TEMPLATE_FILE = "webtemplates/inventoryserver_rootpage.tpl";
-
         #endregion Constants
 
-        /// <summary>Shared logger for Cable Beach server side components</summary>
         public static readonly ILog Log = LogManager.GetLogger("CableBeachServer");
 
         /// <summary>Template engine for rendering dynamic webpages</summary>
         public static readonly SmartyEngine WebTemplates = new SmartyEngine();
-
         /// <summary>Holds active capabilities, mapping from capability UUID to
         /// callback and session information</summary>
         public static ExpiringCache<UUID, Capability> Capabilities = new ExpiringCache<UUID, Capability>();
+        public static Uri OpenIDProviderUrl;
+        public static OpenIdRelyingParty OpenIDRelyingParty = new OpenIdRelyingParty(new StandardRelyingPartyApplicationStore());
+        public static InMemoryProviderTokenManager OAuthTokenManager = new InMemoryProviderTokenManager();
+        public static OAuthServiceProvider OAuthServiceProvider;
+        public static DoubleDictionary<Uri, string, OAuthRequest> OAuthCurrentRequests = new DoubleDictionary<Uri, string, OAuthRequest>();
+        public static string ServiceRootTemplateFile;
 
         /// <summary>Holds callbacks for each registered Cable Beach service to
         /// create capabilities on an incoming capability request</summary>
@@ -141,15 +165,15 @@ namespace ModCableBeach
 
         #region HTML Templates
 
-        public static byte[] BuildInventoryRootPageTemplate(string xrdUrl)
+        public static byte[] BuildServiceRootPageTemplate(string xrdUrl)
         {
             string output = null;
             Dictionary<string, object> variables = new Dictionary<string, object>();
             variables["xrd_url"] = xrdUrl;
 
-            try { output = WebTemplates.Render(ROOT_PAGE_TEMPLATE_FILE, variables); }
+            try { output = WebTemplates.Render(ServiceRootTemplateFile, variables); }
             catch (Exception) { }
-            if (output == null) { output = "Failed to render template " + ROOT_PAGE_TEMPLATE_FILE; }
+            if (output == null) { output = "Failed to render template " + ServiceRootTemplateFile; }
 
             return Encoding.UTF8.GetBytes(output);
         }
