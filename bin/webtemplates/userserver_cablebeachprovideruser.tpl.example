@@ -1,0 +1,8 @@
+<html>
+<head>
+<title>OpenID identity for {$first_name} {$last_name}</title>
+<link rel="openid2.provider openid.server" href="{$openid_server_url}"/>
+<link rel="describedby" href="{$xrd_url}" type="application/xrd+xml" />
+</head>
+<body>OpenID identifier for {$first_name} {$last_name}</body>
+</html>
