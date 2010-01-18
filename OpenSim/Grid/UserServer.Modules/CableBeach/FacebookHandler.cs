@@ -57,8 +57,9 @@ namespace OpenSim.Grid.UserServer.Modules
             m_loginService = loginService;
             m_httpMethod = httpMethod;
             m_path = path;
-            m_fbConnect = new FacebookConnect(m_loginService.m_config.FacebookAppKey,
-                m_loginService.m_config.FacebookAppSecret);
+
+            if (!String.IsNullOrEmpty(m_loginService.m_config.FacebookAppKey) && !String.IsNullOrEmpty(m_loginService.m_config.FacebookAppKey))
+                m_fbConnect = new FacebookConnect(m_loginService.m_config.FacebookAppKey, m_loginService.m_config.FacebookAppSecret);
         }
 
         /// <summary>
@@ -66,6 +67,13 @@ namespace OpenSim.Grid.UserServer.Modules
         /// </summary>
         public void Handle(string path, Stream request, Stream response, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
+            if (m_fbConnect == null)
+            {
+                m_log.Error("[CABLE BEACH FACEBOOK]: Cannot handle Facebook login, FacebookConnect is uninitialized");
+                httpResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
+                return;
+            }
+
             try
             {
                 FacebookConnectSession fbSession = m_fbConnect.GetSession(httpRequest.Cookies);

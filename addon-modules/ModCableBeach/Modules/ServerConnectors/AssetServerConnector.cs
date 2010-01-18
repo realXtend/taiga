@@ -77,6 +77,8 @@ namespace ModCableBeach
     {
         private IAssetService m_AssetService;
 
+        public override string ContentType { get { return null; } }
+
         public CBAssetServerGetHandler(IAssetService service) :
             base("GET", "/assets")
         {
@@ -87,6 +89,7 @@ namespace ModCableBeach
         {
             byte[] result = Utils.EmptyBytes;
             httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
+            httpResponse.ContentType = "application/octet-stream";
 
             string[] p = SplitParams(path);
 
@@ -99,7 +102,7 @@ namespace ModCableBeach
 
                     if (result != null)
                     {
-                        httpResponse.ContentType = "application/octet-stream";
+                        httpResponse.StatusCode = (int)HttpStatusCode.OK;
                         result = assetData;
                     }
                 }
@@ -120,6 +123,7 @@ namespace ModCableBeach
                         message.Metadata.SHA256 = Utils.EmptyBytes; // TODO: metadata.SHA1;
                         message.Metadata.Temporary = metadata.Temporary;
 
+                        httpResponse.StatusCode = (int)HttpStatusCode.OK;
                         httpResponse.ContentType = "application/json";
                         httpResponse.ContentEncoding = Encoding.UTF8;
                         result = Encoding.UTF8.GetBytes(OSDParser.SerializeJsonString(message.Serialize()));
@@ -127,7 +131,7 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    // TODO: Send the metadata and data back in a JSON message containing base64 data
+                    // TODO: Send the metadata and data back together
                 }
             }
 

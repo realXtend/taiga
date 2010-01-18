@@ -34,6 +34,8 @@ namespace ModCableBeach
     {
         private BaseStreamHandler m_proxiedHandler;
 
+        public override string ContentType { get { return null; } }
+
         public TrustedStreamHandler(string httpMethod, string path, BaseStreamHandler proxiedHandler) :
             base(httpMethod, path)
         {
