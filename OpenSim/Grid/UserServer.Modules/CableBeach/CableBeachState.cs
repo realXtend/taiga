@@ -809,13 +809,15 @@ namespace OpenSim.Grid.UserServer.Modules
             OpenAuthHelper.AddToBody(httpResponse, output);
         }
 
-        public static void SendProviderUserTemplate(OSHttpResponse httpResponse, UserProfileData profile)
+        public static void SendProviderUserTemplate(OSHttpResponse httpResponse, UserProfileData profile, Uri openidServerUrl, Uri xrdUrl)
         {
             // TODO: Pass more variables?
             string output = null;
             Dictionary<string, object> variables = new Dictionary<string, object>();
             variables["first_name"] = profile.FirstName;
             variables["last_name"] = profile.SurName;
+            variables["openid_server_url"] = openidServerUrl.ToString();
+            variables["xrd_url"] = xrdUrl.ToString();
 
             try { output = CableBeachState.WebTemplates.Render(PROVIDER_USER_TEMPLATE_FILE, variables); }
             catch (Exception) { }

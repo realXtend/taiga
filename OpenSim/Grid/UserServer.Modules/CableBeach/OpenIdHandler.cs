@@ -104,7 +104,9 @@ namespace OpenSim.Grid.UserServer.Modules
                 else
                 {
                     m_log.Debug("[CABLE BEACH IDP]: Returning user identity page for " + profile.Name);
-                    CableBeachState.SendProviderUserTemplate(httpResponse, profile);
+                    Uri openidServerUrl = new Uri(httpRequest.Url, "/openid/server");
+                    Uri xrdUrl = new Uri(httpRequest.Url, "/users/" + profile.FirstName + "." + profile.SurName + ";xrd");
+                    CableBeachState.SendProviderUserTemplate(httpResponse, profile, openidServerUrl, xrdUrl);
                 }
             }
             else
