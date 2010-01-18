@@ -424,7 +424,7 @@ namespace OpenSim.Grid.UserServer.Modules
 
         static void GetTrustedCapabilities(Uri identity, ServiceRequestsData stateData)
         {
-            m_log.Debug("[CABLE BEACH LOGIN]: Looking for trusted services, " + stateData.ServiceRequirements.Count + "service requirements and " +
+            m_log.Debug("[CABLE BEACH LOGIN]: Looking for trusted services, " + stateData.ServiceRequirements.Count + " service requirements and " +
                 stateData.Services.Count + " services total");
 
             foreach (KeyValuePair<ServiceIdentifier, CapabilityRequirements> serviceRequirement in stateData.ServiceRequirements)

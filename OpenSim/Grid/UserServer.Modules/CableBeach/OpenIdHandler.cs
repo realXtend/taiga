@@ -243,7 +243,7 @@ For more information, see <a href='http://openid.net/'>http://openid.net/</a>.
                         if (passwordValues != null && passwordValues.Length == 1)
                         {
                             authRequest.IsAuthenticated = CableBeachState.LoginService.AuthenticateUser(profile, passwordValues[0]);
-                            m_log.Info("[CABLE BEACH IDP]: Password match result for + " + profile.Name + ": " + authRequest.IsAuthenticated);
+                            m_log.Info("[CABLE BEACH IDP]: Password match result for " + profile.Name + ": " + authRequest.IsAuthenticated);
 
                             if (authRequest.IsAuthenticated.Value && claimsRequest != null)
                             {
