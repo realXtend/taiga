@@ -29,6 +29,7 @@ using System.IO;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using OpenSim.Framework.Servers.HttpServer;
+using OpenMetaverse;
 
 namespace ModCableBeach
 {
