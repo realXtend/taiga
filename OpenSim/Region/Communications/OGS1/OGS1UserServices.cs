@@ -125,15 +125,8 @@ namespace OpenSim.Region.Communications.OGS1
         /// <returns></returns>
         public override UserProfileData SetupMasterUser(UUID uuid)
         {
-            UserProfileData data = GetUserProfile(uuid);
-
-            if (data == null)
-            {
-                throw new Exception(
-                    "Could not retrieve profile for master user " + uuid + ".  User server did not respond to the request.");
-            }
-
-            return data;
+            UserProfileData profile = GetUserProfile(uuid);
+            return profile;
         }
         
         public override bool VerifySession(UUID userID, UUID sessionID)
