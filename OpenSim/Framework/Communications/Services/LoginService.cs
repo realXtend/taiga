@@ -71,6 +71,11 @@ namespace OpenSim.Framework.Communications.Services
         // Hack
         protected IInventoryService m_InventoryService;
 
+        public UserManagerBase UserManager { get { return m_userManager; } }
+        public LibraryRootFolder LibraryRootFolder { get { return m_libraryRootFolder; } }
+        public string WelcomeMessage { get { return m_welcomeMessage; } }
+        public IInterServiceInventoryServices InterInventoryService { get { return m_interInventoryService; } }
+
         /// <summary>
         /// Constructor
         /// </summary>
