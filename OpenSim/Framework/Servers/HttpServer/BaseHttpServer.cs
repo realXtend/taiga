@@ -258,6 +258,12 @@ namespace OpenSim.Framework.Servers.HttpServer
                 IHttpClientContext context = (IHttpClientContext)source;
                 IHttpRequest request = args.Request;
                 
+                // Load cookies if they exist
+                RequestCookies cookies = request.Headers["cookie"] != null
+                    ? new RequestCookies(request.Headers["cookie"])
+                    : new RequestCookies(String.Empty);
+                request.SetCookies(cookies);
+
                 PollServiceEventArgs psEvArgs;
     
                 if (TryGetPollServiceHTTPHandler(request.UriPath.ToString(), out psEvArgs))

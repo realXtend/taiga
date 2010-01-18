@@ -316,6 +316,18 @@ namespace OpenSim.Framework.Servers.HttpServer
         }
 
         /// <summary>
+        /// Set a cookie in the HTTP response.
+        /// </summary>
+        /// <param name="cookie">Cookie to add to the response</param>
+        public void SetCookie(System.Web.HttpCookie cookie)
+        {
+            if (cookie.Domain != null || cookie.Path != null)
+                _httpResponse.Cookies.Add(new ResponseCookie(cookie.Name, cookie.Value, cookie.Expires, cookie.Path, cookie.Domain));
+            else
+                _httpResponse.Cookies.Add(new ResponseCookie(cookie.Name, cookie.Value, cookie.Expires));
+        }
+
+        /// <summary>
         /// Send the response back to the remote client
         /// </summary>
         public void Send()
