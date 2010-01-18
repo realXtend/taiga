@@ -223,46 +223,45 @@ namespace ModCableBeach
                 // Parse the response
                 using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
                 {
-                    Stream responseStream = response.GetResponseStream();
-
-                    #region Read the response
-
-                    // If Content-Length is set we create a buffer of the exact size, otherwise
-                    // a MemoryStream is used to receive the response
-                    bool nolength = (response.ContentLength <= 0);
-                    int size = (nolength) ? 8192 : (int)response.ContentLength;
-                    MemoryStream ms = (nolength) ? new MemoryStream() : null;
-                    byte[] buffer = new byte[size];
-
-                    int bytesRead = 0;
-                    int offset = 0;
-
-                    while ((bytesRead = responseStream.Read(buffer, offset, size)) != 0)
+                    using (Stream responseStream = response.GetResponseStream())
                     {
+                        #region Read the response
+
+                        // If Content-Length is set we create a buffer of the exact size, otherwise
+                        // a MemoryStream is used to receive the response
+                        bool nolength = (response.ContentLength <= 0);
+                        int size = (nolength) ? 8192 : (int)response.ContentLength;
+                        MemoryStream ms = (nolength) ? new MemoryStream() : null;
+                        byte[] buffer = new byte[size];
+
+                        int bytesRead = 0;
+                        int offset = 0;
+
+                        while ((bytesRead = responseStream.Read(buffer, offset, size)) != 0)
+                        {
+                            if (nolength)
+                            {
+                                ms.Write(buffer, 0, bytesRead);
+                            }
+                            else
+                            {
+                                offset += bytesRead;
+                                size -= bytesRead;
+                            }
+                        }
+
                         if (nolength)
                         {
-                            ms.Write(buffer, 0, bytesRead);
+                            assetData = ms.ToArray();
+                            ms.Close();
                         }
                         else
                         {
-                            offset += bytesRead;
-                            size -= bytesRead;
+                            assetData = buffer;
                         }
-                    }
 
-                    if (nolength)
-                    {
-                        assetData = ms.ToArray();
-                        ms.Close();
+                        #endregion Read the response
                     }
-                    else
-                    {
-                        assetData = buffer;
-                    }
-
-                    #endregion Read the response
-
-                    responseStream.Close();
                 }
             }
             catch (WebException ex)
@@ -275,10 +274,12 @@ namespace ModCableBeach
 
         public bool Get(string id, Object sender, AssetRetrieved handler)
         {
+            AssetBase asset = null;
+
             // Cache check
             if (m_Cache != null)
             {
-                AssetBase asset = m_Cache.Get(id);
+                asset = m_Cache.Get(id);
                 if (asset != null)
                 {
                     Util.FireAndForget(delegate(object o) { handler(id, sender, asset); });
@@ -287,13 +288,8 @@ namespace ModCableBeach
             }
 
             // Remote asset request
-            Util.FireAndForget(
-                delegate(object o)
-                {
-                    AssetBase asset = Get(id);
-                    handler(id, sender, asset);
-                }
-            );
+            asset = Get(id);
+            Util.FireAndForget(delegate(object o) { handler(id, sender, asset); });
 
             return true;
         }
