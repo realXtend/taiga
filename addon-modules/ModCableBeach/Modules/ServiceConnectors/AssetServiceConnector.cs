@@ -328,14 +328,21 @@ namespace ModCableBeach
                     CreateAssetMessage create = new CreateAssetMessage();
                     create.Metadata = new MetadataDefault();
 
-                    // HACK: Since OpenSim is using the unofficial SL mime types, we do a conversion process here
-                    sbyte assetType = CableBeachUtils.ContentTypeToSLAssetType(asset.Metadata.ContentType);
+                    // Convert the OpenSim Type enum to a content-type if it is set, or try to use the OpenSim ContentType field
+                    sbyte assetType = asset.Metadata.Type;
                     if (assetType != -1)
+                    {
                         create.Metadata.ContentType = CableBeachUtils.SLAssetTypeToContentType(assetType);
+                    }
                     else if (!String.IsNullOrEmpty(asset.Metadata.ContentType))
+                    {
                         create.Metadata.ContentType = asset.Metadata.ContentType;
+                    }
                     else
+                    {
+                        m_log.Warn("[CABLE BEACH ASSETS]: Storing asset " + assetID + " with a content-type of application/octet-stream");
                         create.Metadata.ContentType = "application/octet-stream";
+                    }
 
                     create.Metadata.CreationDate = DateTime.Now;
                     create.Metadata.Description = asset.Metadata.Description;
