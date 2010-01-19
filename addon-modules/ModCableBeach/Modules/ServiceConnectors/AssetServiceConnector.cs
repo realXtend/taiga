@@ -150,7 +150,7 @@ namespace ModCableBeach
 
                 if (assetData != null)
                 {
-                    asset = new AssetBase();
+                    asset = new AssetBase(metadata.FullID, metadata.Name, metadata.Type);
                     asset.Metadata = metadata;
                     asset.Data = assetData;
 

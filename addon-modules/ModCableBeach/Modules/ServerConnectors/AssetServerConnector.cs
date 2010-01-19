@@ -170,18 +170,19 @@ namespace ModCableBeach
 
                     if (assetData != null && assetData.Length > 0)
                     {
-                        AssetBase asset = new AssetBase();
+                        AssetBase asset = new AssetBase(
+                            (message.Metadata.ID != UUID.Zero) ? message.Metadata.ID : UUID.Random(),
+                            message.Metadata.Name,
+                            CableBeachUtils.ContentTypeToSLAssetType(message.Metadata.ContentType)
+                        );
                         asset.Data = assetData;
                         asset.Metadata.ContentType = message.Metadata.ContentType;
                         asset.Metadata.CreationDate = DateTime.Now;
                         asset.Metadata.Description = message.Metadata.Description;
-                        asset.Metadata.FullID = (message.Metadata.ID != UUID.Zero) ? message.Metadata.ID : UUID.Random();
                         asset.Metadata.ID = asset.Metadata.FullID.ToString();
                         asset.Metadata.Local = false;
-                        asset.Metadata.Name = message.Metadata.Name;
                         asset.Metadata.SHA1 = Utils.EmptyBytes; // TODO: Calculate the SHA-1 hash of the asset here?
                         asset.Metadata.Temporary = message.Metadata.Temporary;
-                        asset.Metadata.Type = CableBeachUtils.ContentTypeToSLAssetType(message.Metadata.ContentType);
 
                         string assetID = m_AssetService.Store(asset);
 
