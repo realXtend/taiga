@@ -147,7 +147,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBCreateInventoryHandler(IInventoryService service) :
-                base("POST", "/inventory/create_inventory")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -196,7 +196,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBCreateObjectHandler(IInventoryService service) :
-                base("POST", "/inventory/create_object")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -404,7 +404,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBGetObjectHandler(IInventoryService service) :
-                base("POST", "/inventory/get_object")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -460,7 +460,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBGetInventorySkeletonHandler(IInventoryService service) :
-                base("POST", "/inventory/get_inventory_skeleton")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -516,7 +516,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBGetRootFolderHandler(IInventoryService service) :
-                base("POST", "/inventory/get_root_folder")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -562,7 +562,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBPurgeFolderHandler(IInventoryService service) :
-                base("POST", "/inventory/purge_folder")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -604,7 +604,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBDeleteObjectHandler(IInventoryService service) :
-                base("POST", "/inventory/delete_object")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -660,7 +660,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBGetFolderContentsHandler(IInventoryService service) :
-                base("POST", "/inventory/get_folder_contents")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -711,7 +711,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBGetFolderForTypeHandler(IInventoryService service) :
-                base("POST", "/inventory/get_folder_for_type")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }
@@ -742,7 +742,23 @@ namespace ModCableBeach
                     else
                     {
                         m_log.Warn("[CABLE BEACH INVENTORY]: get_folder_for_type did not return a folder for user " +
-                            ownerID + ", content type " + message.ContentType);
+                            ownerID + ", content type " + message.ContentType + ". Trying to retrieve root folder");
+
+                        folder = m_InventoryService.GetRootFolder(ownerID);
+
+                        if (folder != null && folder.ID != UUID.Zero)
+                        {
+                            reply.FolderForType.FolderID = folder.ID;
+                            reply.FolderForType.Name = folder.Name;
+                            reply.FolderForType.ParentID = folder.ParentID;
+                            reply.FolderForType.PreferredContentType = CableBeachUtils.SLAssetTypeToContentType(folder.Type);
+                            reply.FolderForType.Version = folder.Version;
+                        }
+                        else
+                        {
+                            m_log.Warn("[CABLE BEACH INVENTORY]: get_folder_for_type failed to fetch root folder for user " +
+                                ownerID + ", returning an empty response");
+                        }
                     }
 
                     return ServiceHelper.MakeResponse(httpResponse, reply.Serialize());
@@ -761,7 +777,7 @@ namespace ModCableBeach
             private IInventoryService m_InventoryService;
 
             public CBGetActiveGesturesHandler(IInventoryService service) :
-                base("POST", "/inventory/get_active_gestures")
+                base(String.Empty, String.Empty)
             {
                 m_InventoryService = service;
             }

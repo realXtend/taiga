@@ -298,7 +298,8 @@ namespace ModCableBeach
                 }
                 else
                 {
-                    m_log.Error("[CABLE BEACH INVENTORY]: Failed to retrieve folder type for " + userID + " from " + getFolderForTypeUri);
+                    m_log.Error("[CABLE BEACH INVENTORY]: Failed to retrieve folder type (" + type + ") for " + userID +
+                        " from " + getFolderForTypeUri);
                 }
             }
             else

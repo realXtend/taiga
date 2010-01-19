@@ -200,7 +200,7 @@ namespace ModCableBeach
             }
             else
             {
-                m_log.Warn("[CABLE BEACH ASSETS]: Failed to fetch asset metadata from " + assetMetadataUri);
+                m_log.Debug("[CABLE BEACH ASSETS]: Failed to fetch asset metadata from " + assetMetadataUri);
             }
 
             return metadata;
@@ -270,7 +270,7 @@ namespace ModCableBeach
             }
             catch (WebException ex)
             {
-                m_log.Warn("[CABLE BEACH ASSETS]: Failed to fetch asset data from " + assetDataUri + ": " + ex.Message);
+                m_log.Debug("[CABLE BEACH ASSETS]: Failed to fetch asset data from " + assetDataUri + ": " + ex.Message);
             }
 
             return assetData;
