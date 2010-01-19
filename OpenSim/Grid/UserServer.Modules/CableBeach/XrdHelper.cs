@@ -43,7 +43,7 @@ namespace OpenSim.Grid.UserServer.Modules
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        public static Service CreateServiceFromLRDD(Uri serviceLocation, Uri serviceType, bool isTrusted, bool allowOverride)
+        public static Service CreateServiceFromLRDD(Uri serviceLocation, Uri serviceType, bool allowOverride)
         {
             HttpWebResponse response;
             Uri xrdUrl = null;
@@ -94,7 +94,7 @@ namespace OpenSim.Grid.UserServer.Modules
                 response.Close();
 
                 if (xrdStream != null)
-                    return XrdDocumentToService(xrdStream, xrdUrl, serviceType, isTrusted, allowOverride);
+                    return XrdDocumentToService(xrdStream, xrdUrl, serviceType, allowOverride);
             }
             else
             {
@@ -207,7 +207,7 @@ namespace OpenSim.Grid.UserServer.Modules
             return null;
         }
 
-        static Service XrdDocumentToService(Stream xriStream, Uri xrdLocation, Uri serviceType, bool isTrusted, bool allowOverride)
+        static Service XrdDocumentToService(Stream xriStream, Uri xrdLocation, Uri serviceType, bool allowOverride)
         {
             XrdParser parser = new XrdParser(xriStream);
             XrdDocument xrd = parser.Document;
@@ -266,7 +266,6 @@ namespace OpenSim.Grid.UserServer.Modules
                 oauthRequest,
                 oauthAuthorize,
                 oauthAccess,
-                isTrusted,
                 allowOverride);
         }
 

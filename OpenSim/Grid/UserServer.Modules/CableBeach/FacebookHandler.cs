@@ -96,9 +96,9 @@ namespace OpenSim.Grid.UserServer.Modules
                     CableBeachState.SendLoginTemplate(httpResponse, null, "Connection to Facebook failed");
                 }
             }
-            catch (FacebookConnectAuthenticationException)
+            catch (FacebookConnectAuthenticationException ex)
             {
-                m_log.Error("[CABLE BEACH FACEBOOK]: No valid Facebook Connect session found");
+                m_log.Error("[CABLE BEACH FACEBOOK]: Facebook Connect authentication failure: " + ex.Message);
                 httpResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                 CableBeachState.SendLoginTemplate(httpResponse, null, "No valid Facebook Connect session found");
             }

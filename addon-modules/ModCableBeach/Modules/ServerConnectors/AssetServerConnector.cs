@@ -26,6 +26,7 @@
  */
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -69,7 +70,31 @@ namespace ModCableBeach
             server.AddStreamHandler(new TrustedStreamHandler("POST", "/assets", new CBAssetServerPostHandler(m_AssetService)));
             server.AddStreamHandler(new TrustedStreamHandler("DELETE", "/assets", new CBAssetServerDeleteHandler(m_AssetService)));
 
+            // Register this server connector as a Cable Beach service
+            CableBeachServerState.RegisterService(new Uri(CableBeachServices.ASSETS), CreateCapabilitiesHandler);
+
             CableBeachServerState.Log.Info("[CABLE BEACH ASSETS]: AssetServerConnector is running");
+        }
+
+        void CreateCapabilitiesHandler(UUID sessionID, Uri identity, ref Dictionary<Uri, Uri> capabilities)
+        {
+            Uri[] caps = new Uri[capabilities.Count];
+            capabilities.Keys.CopyTo(caps, 0);
+
+            for (int i = 0; i < caps.Length; i++)
+            {
+                Uri cap = caps[i];
+                string capName = cap.ToString();
+
+                switch (capName)
+                {
+                    case CableBeachServices.ASSET_CREATE_ASSET:
+                    case CableBeachServices.ASSET_GET_ASSET:
+                    case CableBeachServices.ASSET_GET_ASSET_METADATA:
+                        capabilities[cap] = new Uri(CableBeachServerState.ServiceUrl, "/assets");
+                        break;
+                }
+            }
         }
     }
 

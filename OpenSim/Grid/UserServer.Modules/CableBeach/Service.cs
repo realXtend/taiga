@@ -37,18 +37,15 @@ namespace OpenSim.Grid.UserServer.Modules
         public Uri OAuthRequestToken;
         public Uri OAuthAuthorizeToken;
         public Uri OAuthGetAccessToken;
-        public bool IsTrusted;
         public bool CanOverride;
 
-        public Service(Uri xrdDocument, Uri seedCapability, Uri oAuthRequestToken, Uri oAuthAuthorizeToken, Uri oAuthGetAccessToken,
-            bool isTrusted, bool canOverride)
+        public Service(Uri xrdDocument, Uri seedCapability, Uri oAuthRequestToken, Uri oAuthAuthorizeToken, Uri oAuthGetAccessToken, bool canOverride)
         {
             XrdDocument = xrdDocument;
             SeedCapability = seedCapability;
             OAuthRequestToken = oAuthRequestToken;
             OAuthAuthorizeToken = oAuthAuthorizeToken;
             OAuthGetAccessToken = oAuthGetAccessToken;
-            IsTrusted = isTrusted;
             CanOverride = canOverride;
         }
 
@@ -59,18 +56,24 @@ namespace OpenSim.Grid.UserServer.Modules
             OAuthRequestToken = service.OAuthRequestToken;
             OAuthAuthorizeToken = service.OAuthAuthorizeToken;
             OAuthGetAccessToken = service.OAuthGetAccessToken;
-            IsTrusted = service.IsTrusted;
             CanOverride = service.CanOverride;
         }
 
         public override string ToString()
         {
-            bool trusted = IsTrusted;
             string location;
+            bool trusted = (SeedCapability != null);
+
             if (trusted)
+            {
                 location = SeedCapability.ToString();
+            }
             else
-                location = (OAuthGetAccessToken != null) ? OAuthGetAccessToken.ToString() : "null";
+            {
+                location = (OAuthGetAccessToken != null)
+                    ? OAuthGetAccessToken.ToString()
+                    : "null";
+            }
 
             return String.Format("Location: {1}, {2} {3}",
                 location,

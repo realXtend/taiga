@@ -229,7 +229,6 @@ namespace OpenSim.Grid.UserServer.Modules
             CableBeachServices.FILESYSTEM_CREATE_FILESYSTEM,
             CableBeachServices.FILESYSTEM_CREATE_OBJECT,
             CableBeachServices.FILESYSTEM_GET_ACTIVE_GESTURES,
-            CableBeachServices.FILESYSTEM_GET_FILESYSTEM,
             CableBeachServices.FILESYSTEM_GET_FILESYSTEM_SKELETON,
             CableBeachServices.FILESYSTEM_GET_OBJECT,
             CableBeachServices.FILESYSTEM_GET_ROOT_FOLDER,
@@ -306,14 +305,14 @@ namespace OpenSim.Grid.UserServer.Modules
                 if (!TryGetUserFilesystemService(identity, out filesystemService))
                 {
                     Uri localFilesystemUri = LoginService.m_config.InventoryUrl;
-                    filesystemService = CableBeachState.CreateServiceFromLRDD(localFilesystemUri, new Uri(CableBeachServices.FILESYSTEM), true, true);
+                    filesystemService = CableBeachState.CreateServiceFromLRDD(localFilesystemUri, new Uri(CableBeachServices.FILESYSTEM), true);
                 }
 
                 if (filesystemService != null)
                 {
                     // Use our local asset service
                     Uri localAssetUri = LoginService.m_config.InventoryUrl;
-                    assetService = CableBeachState.CreateServiceFromLRDD(localAssetUri, new Uri(CableBeachServices.ASSETS), true, false);
+                    assetService = CableBeachState.CreateServiceFromLRDD(localAssetUri, new Uri(CableBeachServices.ASSETS), true);
                 }
 
                 if (assetService != null && filesystemService != null)
@@ -520,7 +519,7 @@ namespace OpenSim.Grid.UserServer.Modules
                     if (stateData.Services.TryGetValue(serviceRequirement.Key, out currentService))
                     {
                         // Check if this is a trusted service with a valid seed capability
-                        if (currentService.IsTrusted && currentService.SeedCapability != null)
+                        if (currentService.SeedCapability != null)
                         {
                             #region Seed Capability Request
 
@@ -685,7 +684,7 @@ namespace OpenSim.Grid.UserServer.Modules
             return requirements;
         }
 
-        public static Service CreateServiceFromLRDD(Uri serviceLocation, ServiceIdentifier serviceType, bool isTrusted, bool allowOverride)
+        public static Service CreateServiceFromLRDD(Uri serviceLocation, ServiceIdentifier serviceType, bool allowOverride)
         {
             Service service;
 
@@ -694,7 +693,7 @@ namespace OpenSim.Grid.UserServer.Modules
                 return service;
 
             // Fetch and parse the XRD
-            service = XrdHelper.CreateServiceFromLRDD(serviceLocation, serviceType, isTrusted, allowOverride);
+            service = XrdHelper.CreateServiceFromLRDD(serviceLocation, serviceType, allowOverride);
 
             // Cache the results
             if (service != null)
