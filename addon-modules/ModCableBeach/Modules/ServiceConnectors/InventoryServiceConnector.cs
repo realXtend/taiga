@@ -397,6 +397,7 @@ namespace ModCableBeach
                 get.Identity = identity;
                 get.AgentID = userID;
                 get.ObjectID = folderID;
+                get.IsFolder = true;
 
                 CapsClient request = new CapsClient(getObjectUri);
                 OSDMap response = request.GetResponse(get.Serialize(), OSDFormat.Json, REQUEST_TIMEOUT) as OSDMap;
@@ -560,6 +561,7 @@ namespace ModCableBeach
                 get.Identity = identity;
                 get.AgentID = item.Owner;
                 get.ObjectID = item.ID;
+                get.IsFolder = false;
 
                 CapsClient request = new CapsClient(getObjectUri);
                 OSDMap response = request.GetResponse(get.Serialize(), OSDFormat.Json, REQUEST_TIMEOUT) as OSDMap;
@@ -609,6 +611,7 @@ namespace ModCableBeach
                 get.Identity = identity;
                 get.AgentID = folder.Owner;
                 get.ObjectID = folder.ID;
+                get.IsFolder = true;
 
                 CapsClient request = new CapsClient(getObjectUri);
                 OSDMap response = request.GetResponse(get.Serialize(), OSDFormat.Json, REQUEST_TIMEOUT) as OSDMap;

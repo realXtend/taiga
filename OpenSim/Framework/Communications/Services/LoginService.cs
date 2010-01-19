@@ -256,7 +256,7 @@ namespace OpenSim.Framework.Communications.Services
 
                         // Inventory Library Section
                         Hashtable InventoryLibRootHash = new Hashtable();
-                        InventoryLibRootHash["folder_id"] = "00000112-000f-0000-0000-000100bba000";
+                        InventoryLibRootHash["folder_id"] = UUID.Zero.ToString(); //"00000112-000f-0000-0000-000100bba000";
                         ArrayList InventoryLibRoot = new ArrayList();
                         InventoryLibRoot.Add(InventoryLibRootHash);
 
@@ -872,6 +872,8 @@ namespace OpenSim.Framework.Communications.Services
         /// <returns></returns>
         protected virtual ArrayList GetInventoryLibrary()
         {
+            return null;
+
             Dictionary<UUID, InventoryFolderImpl> rootFolders
                 = m_libraryRootFolder.RequestSelfAndDescendentFolders();
             ArrayList folderHashes = new ArrayList();

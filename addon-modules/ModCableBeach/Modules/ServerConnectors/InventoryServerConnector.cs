@@ -176,9 +176,16 @@ namespace ModCableBeach
                         m_log.Warn("[CABLE BEACH INVENTORY]: create_inventory called for user " + ownerID + " who already has an inventory");
                     }
 
-		    //                    InventoryFolderBase rootFolder = m_InventoryService.GetRootFolder(ownerID);
-		    //                    if (rootFolder != null)
-		    //                        reply.RootFolderID = rootFolder.ID;
+                    InventoryFolderBase rootFolder = m_InventoryService.GetRootFolder(ownerID);
+                    if (rootFolder != null)
+                    {
+                        reply.Success = true;
+                    }
+                    else
+                    {
+                        reply.Success = false;
+                        reply.Message = "failed to create inventory for " + ownerID;
+                    }
 
                     return ServiceHelper.MakeResponse(httpResponse, reply.Serialize());
                 }
@@ -421,15 +428,9 @@ namespace ModCableBeach
 
                     UUID ownerID = CableBeachUtils.MessageToUUID(message.Identity, message.AgentID);
 
-                    InventoryItemBase item = new InventoryItemBase(message.ObjectID, ownerID);
-                    item = m_InventoryService.GetItem(item);
-                    if (item != null)
+                    if (message.IsFolder)
                     {
-                        reply.Success = true;
-                        reply.Object = ServiceHelper.InventoryToMessage(item);
-                    }
-                    else
-                    {
+                        // Folder request
                         InventoryFolderBase folder = new InventoryFolderBase(message.ObjectID, ownerID);
                         folder = m_InventoryService.GetFolder(folder);
                         if (folder != null)
@@ -439,8 +440,24 @@ namespace ModCableBeach
                         }
                         else
                         {
-                            m_log.Error("[CABLE BEACH INVENTORY]: get_object could not find item or folder " + message.ObjectID);
-                            reply.Message = "item or folder not found";
+                            m_log.Error("[CABLE BEACH INVENTORY]: get_object could not find folder " + message.ObjectID);
+                            reply.Message = "folder not found";
+                        }
+                    }
+                    else
+                    {
+                        // Item request
+                        InventoryItemBase item = new InventoryItemBase(message.ObjectID, ownerID);
+                        item = m_InventoryService.GetItem(item);
+                        if (item != null)
+                        {
+                            reply.Success = true;
+                            reply.Object = ServiceHelper.InventoryToMessage(item);
+                        }
+                        else
+                        {
+                            m_log.Error("[CABLE BEACH INVENTORY]: get_object could not find item " + message.ObjectID);
+                            reply.Message = "item not found";
                         }
                     }
 
@@ -725,6 +742,7 @@ namespace ModCableBeach
                     message.Deserialize(map);
 
                     GetFolderForTypeReplyMessage reply = new GetFolderForTypeReplyMessage();
+                    reply.FolderForType = new GetFolderForTypeReplyMessage.Folder();
 
                     UUID ownerID = CableBeachUtils.MessageToUUID(message.Identity, message.AgentID);
 
@@ -760,6 +778,9 @@ namespace ModCableBeach
                                 ownerID + ", returning an empty response");
                         }
                     }
+
+                    m_log.Debug("[CABLE BEACH INVENTORY]: Returning folder " + reply.FolderForType.FolderID + " for type " +
+                        message.ContentType);
 
                     return ServiceHelper.MakeResponse(httpResponse, reply.Serialize());
                 }
