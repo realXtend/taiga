@@ -1,4 +1,4 @@
-   <Project name="ModCableBeach" path="addon-modules/ModCableBeach/Modules" type="Library">
+   <Project name="ModCableBeach" frameworkVersion="v3_5" path="addon-modules/ModCableBeach/Modules" type="Library">
      <Configuration name="Debug">
        <Options>
          <OutputPath>../../../bin/</OutputPath>
