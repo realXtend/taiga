@@ -9586,11 +9586,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             WithNotecard(assetID, delegate (UUID id, AssetBase a)
             {
-                if (a == null || a.Type != 7)
-                {
-                    ShoutError("Notecard '" + name + "' could not be found.");
-                    return;
-                }
+	      // This check is redundant and can cause problems if the notecard asset
+	      // and inventory types don't match. Besides... its a bare constant
+//                 if (a == null || a.Type != 7)
+//                 {
+//                     ShoutError("Notecard '" + name + "' could not be found.");
+//                     return;
+//                 }
 
                 System.Text.UTF8Encoding enc =
                     new System.Text.UTF8Encoding();
@@ -9647,11 +9649,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             WithNotecard(assetID, delegate (UUID id, AssetBase a)
                          {
-                             if (a == null || a.Type != 7)
-                             {
-                                 ShoutError("Notecard '" + name + "' could not be found.");
-                                 return;
-                             }
+			   // This check is redundant and can cause problems if the notecard asset
+			   // and inventory types don't match. Besides... its a bare constant
+//                              if (a == null || a.Type != 7)
+//                              {
+//                                  ShoutError("Notecard '" + name + "' could not be found.");
+//                                  return;
+//                              }
 
                              System.Text.UTF8Encoding enc =
                                  new System.Text.UTF8Encoding();
