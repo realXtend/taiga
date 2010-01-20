@@ -129,11 +129,14 @@ namespace OpenSim.Region.Physics.BasicPhysicsPlugin
                     actorPosition.X = ((int)Constants.RegionSize - 0.1f);
                 }
 
-                float height = _heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + actor.Size.Z;
+                int posX = Utils.Clamp((int)actor.Position.X, 0, (int)Constants.RegionSize - 1);
+                int posY = Utils.Clamp((int)actor.Position.Y, 0, (int)Constants.RegionSize - 1);
+
+                float height = _heightMap[posY * Constants.RegionSize + posX] + actor.Size.Z;
                 if (actor.Flying)
                 {
                     if (actor.Position.Z + (actor.Velocity.Z*timeStep) <
-                        _heightMap[(int)actor.Position.Y * Constants.RegionSize + (int)actor.Position.X] + 2)
+                        _heightMap[posY * Constants.RegionSize + posX] + 2)
                     {
                         actorPosition.Z = height;
                         actorVelocity.Z = 0;
