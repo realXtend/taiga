@@ -456,19 +456,23 @@ namespace OpenSim.Framework.Servers.HttpServer
                     if (buffer == null)
                         return;
 
-                    if (!response.SendChunked)
-                        response.ContentLength64 = buffer.LongLength;
-
-                    try
+                    if (buffer.LongLength > 0)
                     {
-                        response.OutputStream.Write(buffer, 0, buffer.Length);
+                        if (!response.SendChunked)
+                            response.ContentLength64 = buffer.LongLength;
+
+                        try
+                        {
+                            response.OutputStream.Write(buffer, 0, buffer.Length);
+                            //response.OutputStream.Close();
+                        }
+                        catch (HttpListenerException)
+                        {
+                            m_log.WarnFormat("[BASE HTTP SERVER]: HTTP request abnormally terminated.");
+                        }
                         //response.OutputStream.Close();
                     }
-                    catch (HttpListenerException)
-                    {
-                        m_log.WarnFormat("[BASE HTTP SERVER]: HTTP request abnormally terminated.");
-                    }
-                    //response.OutputStream.Close();
+
                     try
                     {
                         response.Send();

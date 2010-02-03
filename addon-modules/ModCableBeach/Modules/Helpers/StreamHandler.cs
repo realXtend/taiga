@@ -25,43 +25,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+using System;
 using System.IO;
-using System.Net;
-using System.Security.Cryptography.X509Certificates;
 using OpenSim.Framework.Servers.HttpServer;
-using OpenMetaverse;
 
 namespace ModCableBeach
 {
-    public class TrustedStreamHandler : BaseStreamHandler
+    public delegate byte[] HttpRequestCallback(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse);
+
+    public class StreamHandler : BaseStreamHandler
     {
-        private BaseStreamHandler m_proxiedHandler;
+        private HttpRequestCallback m_callback;
 
         public override string ContentType { get { return null; } }
 
-        public TrustedStreamHandler(string httpMethod, string path, BaseStreamHandler proxiedHandler) :
+        public StreamHandler(string httpMethod, string path, HttpRequestCallback callback) :
             base(httpMethod, path)
         {
-            m_proxiedHandler = proxiedHandler;
+            m_callback = callback;
         }
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            if (CheckClientCert(null))
-            {
-                return m_proxiedHandler.Handle(path, request, httpRequest, httpResponse);
-            }
-            else
-            {
-                httpResponse.StatusCode = (int)HttpStatusCode.Forbidden;
-                return OpenMetaverse.Utils.EmptyBytes;
-            }
-        }
-
-        bool CheckClientCert(X509Certificate clientCertificate)
-        {
-            // FIXME: Implement SSL client certificate checking
-            return true;
+            return m_callback(path, request, httpRequest, httpResponse);
         }
     }
 }

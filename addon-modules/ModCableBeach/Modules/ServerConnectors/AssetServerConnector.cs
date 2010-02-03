@@ -112,7 +112,7 @@ namespace ModCableBeach
 
         public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
         {
-            byte[] result = Utils.EmptyBytes;
+            byte[] result = OpenMetaverse.Utils.EmptyBytes;
             httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
             httpResponse.ContentType = "application/octet-stream";
 
@@ -145,7 +145,7 @@ namespace ModCableBeach
                         UUID.TryParse(metadata.ID, out message.Metadata.ID);
                         message.Metadata.Methods = new System.Collections.Generic.Dictionary<string, Uri>(0);
                         message.Metadata.Name = metadata.Name;
-                        message.Metadata.SHA256 = Utils.EmptyBytes; // TODO: metadata.SHA1;
+                        message.Metadata.SHA256 = OpenMetaverse.Utils.EmptyBytes; // TODO: metadata.SHA1;
                         message.Metadata.Temporary = metadata.Temporary;
 
                         httpResponse.StatusCode = (int)HttpStatusCode.OK;
@@ -206,7 +206,7 @@ namespace ModCableBeach
                         asset.Metadata.Description = message.Metadata.Description;
                         asset.Metadata.ID = asset.Metadata.FullID.ToString();
                         asset.Metadata.Local = false;
-                        asset.Metadata.SHA1 = Utils.EmptyBytes; // TODO: Calculate the SHA-1 hash of the asset here?
+                        asset.Metadata.SHA1 = OpenMetaverse.Utils.EmptyBytes; // TODO: Calculate the SHA-1 hash of the asset here?
                         asset.Metadata.Temporary = message.Metadata.Temporary;
 
                         string assetID = m_AssetService.Store(asset);
@@ -260,7 +260,7 @@ namespace ModCableBeach
                     httpResponse.StatusCode = (int)HttpStatusCode.OK;
             }
 
-            return Utils.EmptyBytes;
+            return OpenMetaverse.Utils.EmptyBytes;
         }
     }
 }
