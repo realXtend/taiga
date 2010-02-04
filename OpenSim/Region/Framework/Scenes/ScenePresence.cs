@@ -2783,11 +2783,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 m_scene.CrossAgentToNewRegion(this, m_physicsActor.Flying);
             }
-            catch(Exception ex)
+            catch
             {
                 m_scene.CrossAgentToNewRegion(this, false);
             }
-
         }
 
         public void InTransit()
@@ -2865,7 +2864,6 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 RemoveNeighbourRegion(handle);
             }
-
         }
 
         #endregion
@@ -3026,7 +3024,7 @@ namespace OpenSim.Region.Framework.Scenes
             List<int> attPoints = m_appearance.GetAttachedPoints();
             if (attPoints != null)
             {
-                m_log.DebugFormat("[SCENE PRESENCE]: attachments {0}", attPoints.Count);
+                //m_log.DebugFormat("[SCENE PRESENCE]: attachments {0}", attPoints.Count);
                 int i = 0;
                 AttachmentData[] attachs = new AttachmentData[attPoints.Count];
                 foreach (int point in attPoints)
@@ -3276,9 +3274,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
                 if (m_health <= 0)
                     m_scene.EventManager.TriggerAvatarKill(killerObj, this);
-            }
-
-            
+            }            
         }
 
         public void setHealthWithUpdate(float health)
