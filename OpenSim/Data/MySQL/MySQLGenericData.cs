@@ -29,19 +29,30 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using log4net;
 using OpenMetaverse;
 using OpenSim.Framework;
 using MySql.Data.MySqlClient;
 
 namespace OpenSim.Data.MySQL
 {
-    public class MySqlGenericData : MySqlFramework, IGenericData
+    public class MySqlGenericData : IGenericData
     {
-        public MySqlGenericData(string connectionString)
-            : base(connectionString)
+        private static readonly ILog m_log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+        private string m_connectionString;
+        private object m_dbLock = new object();
+
+        public MySqlGenericData(string connect)
         {
-            Migration m = new Migration(m_Connection, this.GetType().Assembly, "GenericStore");
-            m.Update();
+            m_connectionString = connect;
+
+            using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+            {
+                dbcon.Open();
+                Migration m = new Migration(dbcon, this.GetType().Assembly, "GenericStore");
+                m.Update();
+            }
         }
 
         public string Get(string scope, string key)
@@ -50,19 +61,35 @@ namespace OpenSim.Data.MySQL
             if (!String.IsNullOrEmpty(scope))
                 command += " AND `scope` = ?scope";
 
-            MySqlCommand cmd = new MySqlCommand(command);
-
-            cmd.Parameters.AddWithValue("?key", key);
-            if (!String.IsNullOrEmpty(scope))
-                cmd.Parameters.AddWithValue("?scope", scope);
-
-            using (IDataReader result = ExecuteReader(cmd))
+            lock (m_dbLock)
             {
-                if (result.Read())
-                    return result.GetString(0);
-                else
-                    return null;
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+                {
+                    dbcon.Open();
+
+                    using (MySqlCommand cmd = new MySqlCommand(command, dbcon))
+                    {
+                        cmd.Parameters.AddWithValue("?key", key);
+                        if (!String.IsNullOrEmpty(scope))
+                            cmd.Parameters.AddWithValue("?scope", scope);
+
+                        try
+                        {
+                            using (MySqlDataReader dbReader = cmd.ExecuteReader(CommandBehavior.SingleRow))
+                            {
+                                if (dbReader.Read())
+                                    return dbReader.GetString(0);
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            m_log.Error("[GENERIC DB]: MySql failure fetching key " + key + ": " + e.Message);
+                        }
+                    }
+                }
             }
+
+            return null;
         }
 
         public bool Store(string scope, string key, string value)
@@ -72,17 +99,37 @@ namespace OpenSim.Data.MySQL
 
             string command = "INSERT INTO `generic` (`scope`, `key`, `value`) VALUES (?scope, ?key, ?value) ON DUPLICATE KEY UPDATE `value` = ?value";
 
-            MySqlCommand cmd = new MySqlCommand(command);
+            lock (m_dbLock)
+            {
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+                {
+                    dbcon.Open();
 
-            cmd.Parameters.AddWithValue("?scope", scope ?? String.Empty);
-            cmd.Parameters.AddWithValue("?key", key);
-            cmd.Parameters.AddWithValue("?value", value);
+                    try
+                    {
+                        using (MySqlCommand cmd = new MySqlCommand(command, dbcon))
+                        {
+                            cmd.Parameters.AddWithValue("?scope", scope ?? String.Empty);
+                            cmd.Parameters.AddWithValue("?key", key);
+                            cmd.Parameters.AddWithValue("?value", value);
 
-            int result = ExecuteNonQuery(cmd);
+                            int result = cmd.ExecuteNonQuery();
+                            cmd.Dispose();
 
-            // mysql_affected_rows is 1 if a new row was inserted and 2 if
-            // "ON DUPLICATE KEY UPDATE" executed
-            return (result > 1);
+                            // mysql_affected_rows is 1 if a new row was inserted and 2 if
+                            // "ON DUPLICATE KEY UPDATE" executed
+                            return (result > 1);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[GENERIC DB]: MySQL failure creating tuple ({0},{1}). Error: {2}",
+                            key, value, e.Message);
+                    }
+                }
+            }
+
+            return false;
         }
 
         public bool Remove(string scope, string key)
@@ -91,15 +138,35 @@ namespace OpenSim.Data.MySQL
             if (!String.IsNullOrEmpty(scope))
                 command += " AND `scope` = ?scope";
 
-            MySqlCommand cmd = new MySqlCommand(command);
+            lock (m_dbLock)
+            {
+                using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
+                {
+                    dbcon.Open();
 
-            cmd.Parameters.AddWithValue("?key", key);
-            if (!String.IsNullOrEmpty(scope))
-                cmd.Parameters.AddWithValue("?scope", scope);
+                    try
+                    {
+                        using (MySqlCommand cmd = new MySqlCommand(command, dbcon))
+                        {
+                            cmd.Parameters.AddWithValue("?key", key);
+                            if (!String.IsNullOrEmpty(scope))
+                                cmd.Parameters.AddWithValue("?scope", scope);
 
-            int result = ExecuteNonQuery(cmd);
+                            int result = cmd.ExecuteNonQuery();
+                            cmd.Dispose();
 
-            return (result > 0);
+                            return (result > 0);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.ErrorFormat("[GENERIC DB]: MySQL failure removing key {0}. Error: {1}",
+                            key, e.Message);
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }
