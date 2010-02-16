@@ -367,7 +367,6 @@ namespace OpenSim
             m_console.Commands.AddCommand("hypergrid", false, "unlink-region",
                                           "unlink-region <local name> or <HostName>:<HttpPort> <cr>",
                                           "Unlink a hypergrid region", RunCommand);
-
         }
 
         public override void ShutdownSpecific()
@@ -433,7 +432,7 @@ namespace OpenSim
                     // kick client...
                     if (alert != null)
                         presence.ControllingClient.Kick(alert);
-                    else 
+                    else
                         presence.ControllingClient.Kick("\nThe OpenSim manager kicked you out.\n");
 
                     // ...and close on our side
@@ -639,7 +638,6 @@ namespace OpenSim
                 }
             }
         }
-
 
         /// <summary>
         /// Load, Unload, and list Region modules in use
@@ -972,7 +970,6 @@ namespace OpenSim
                                            scene.RegionInfo.RegionLocX,
                                            scene.RegionInfo.RegionLocY,
                                            scene.RegionInfo.InternalEndPoint.Port));
-                                
                             });
                     break;
 
@@ -1097,7 +1094,7 @@ namespace OpenSim
             }
             else
             {
-	      MainConsole.Instance.Output(string.Format("A user with the name {0} {1} already exists!", firstName, lastName));
+                MainConsole.Instance.Output(string.Format("A user with the name {0} {1} already exists!", firstName, lastName));
             }
         }
 
@@ -1183,14 +1180,14 @@ namespace OpenSim
                     }
                     if (cmdparams.Length > 4)
                     {
-                        loadOffset.X = (float) Convert.ToDecimal(cmdparams[4]);
+                        loadOffset.X = (float)Convert.ToDecimal(cmdparams[4], Culture.NumberFormatInfo);
                         if (cmdparams.Length > 5)
                         {
-                            loadOffset.Y = (float) Convert.ToDecimal(cmdparams[5]);
+                            loadOffset.Y = (float)Convert.ToDecimal(cmdparams[5], Culture.NumberFormatInfo);
                         }
                         if (cmdparams.Length > 6)
                         {
-                            loadOffset.Z = (float) Convert.ToDecimal(cmdparams[6]);
+                            loadOffset.Z = (float)Convert.ToDecimal(cmdparams[6], Culture.NumberFormatInfo);
                         }
                         MainConsole.Instance.Output(String.Format("loadOffsets <X,Y,Z> = <{0},{1},{2}>",loadOffset.X,loadOffset.Y,loadOffset.Z));
                     }
