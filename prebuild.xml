@@ -533,7 +533,7 @@
       <Reference name="OpenSim.Framework"/>
       <Reference name="OpenSim.Framework.Console"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
-      <Reference name="Ode.NET.dll" />    
+      <Reference name="Ode.NET.dll" />
       <Reference name="log4net.dll"/>
 
       <Files>
@@ -570,8 +570,6 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-
-    
 
     <Project frameworkVersion="v3_5" name="OpenSim.Region.Physics.Meshing" path="OpenSim/Region/Physics/Meshing" type="Library">
       <Configuration name="Debug">
@@ -1290,7 +1288,7 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-    
+
     <Project frameworkVersion="v3_5" name="OpenSim.Services.AuthorizationService" path="OpenSim/Services/AuthorizationService" type="Library">
       <Configuration name="Debug">
         <Options>
@@ -1648,7 +1646,7 @@
       <Reference name="OpenSim.Region.Physics.Manager"/>
 
       <Reference name="GlynnTucker.Cache.dll"/>
-      
+
       <!-- For scripting in funny languages by default -->
       <Reference name="Microsoft.JScript"/>
       <Reference name="XMLRPC.dll"/>
@@ -1656,8 +1654,8 @@
       <Reference name="Nini.dll" />
       <Reference name="log4net.dll"/>
       <Reference name="DotNetOpenMail.dll"/>
-	  
-	  <!-- To allow regions to have mono addins -->
+
+      <!-- To allow regions to have mono addins -->
       <Reference name="Mono.Addins.dll" />
 
       <Files>
@@ -1740,7 +1738,6 @@
       <Reference name="log4net.dll"/>
       <Reference name="DotNetOpenMail.dll"/>
 
-	  
       <Files>
         <Match pattern="*.cs" recurse="true">
           <Exclude name="Tests" pattern="Tests" />
@@ -1749,8 +1746,7 @@
       </Files>
     </Project>
 
-
-<Project frameworkVersion="v3_5" name="OpenSim.Region.RegionCombinerModule" path="OpenSim/Region/RegionCombinerModule" type="Library">
+    <Project frameworkVersion="v3_5" name="OpenSim.Region.RegionCombinerModule" path="OpenSim/Region/RegionCombinerModule" type="Library">
       <Configuration name="Debug">
         <Options>
           <OutputPath>../../../bin/</OutputPath>
@@ -1778,8 +1774,8 @@
       <Reference name="OpenSim.Region.CoreModules" />
       <Reference name="Nini.dll" />
       <Reference name="log4net.dll"/>
-	  
-	  <!-- To allow regions to have mono addins -->
+
+      <!-- To allow regions to have mono addins -->
       <Reference name="Mono.Addins.dll" />
 
       <Files>
@@ -1787,9 +1783,6 @@
         <Match pattern="*.addin.xml" path="Resources" buildAction="EmbeddedResource" recurse="true"/>
       </Files>
     </Project>
-
-
-
 
     <Project frameworkVersion="v3_5" name="OpenSim.Region.Communications.Hypergrid" path="OpenSim/Region/Communications/Hypergrid" type="Library">
       <Configuration name="Debug">
@@ -2303,11 +2296,9 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-	
-	
-	<!-- Client Stack Modules -->
-	
-	
+
+    <!-- Client Stack Modules -->
+
     <Project frameworkVersion="v3_5" name="OpenSim.Client.MXP" path="OpenSim/Client/MXP" type="Library">
       <Configuration name="Debug">
         <Options>
@@ -2356,10 +2347,10 @@
       <Reference name="OpenMetaverseTypes.dll"/>
       <Reference name="OpenMetaverse.dll"/>
       <Reference name="System"/>
-	  <Reference name="System.Drawing"/>
+      <Reference name="System.Drawing"/>
       <Reference name="OpenSim.Framework"/>
-	  <Reference name="OpenSim.Framework.Servers"/>
-	  <Reference name="OpenSim.Framework.Servers.HttpServer"/>
+      <Reference name="OpenSim.Framework.Servers"/>
+      <Reference name="OpenSim.Framework.Servers.HttpServer"/>
       <Reference name="OpenSim.Region.Framework"/>
       <Reference name="OpenSim.Framework.Communications"/>
       <Reference name="OpenSim.Services.Interfaces"/>
@@ -2401,7 +2392,7 @@
         <Match pattern="*.cs" recurse="true"/>
       </Files>
     </Project>
-	
+
     <Project frameworkVersion="v3_5" name="OpenSim.Client.Linden" path="OpenSim/Client/Linden" type="Library">
       <Configuration name="Debug">
         <Options>
@@ -3051,7 +3042,7 @@
       <ReferencePath>../../../bin/</ReferencePath>
       <Reference name="System"/>
       <Reference name="System.Xml"/>
-	    <Reference name="System.Core"/>
+      <Reference name="System.Core"/>
       <Reference name="System.Drawing"/>
       <Reference name="System.Data"/>
       <Reference name="OpenMetaverse.dll"/>
@@ -3060,7 +3051,7 @@
       <Reference name="OpenSim.Data"/>
       <Reference name="OpenSim.Region.Framework"/>
       <Reference name="OpenSim.Region.CoreModules"/>
-	    <Reference name="OpenSim.Tests.Common"/>
+      <Reference name="OpenSim.Tests.Common"/>
       <Reference name="log4net.dll"/>
       <Reference name="Mono.Addins.dll" />
       <Reference name="nunit.framework.dll" />
@@ -3301,7 +3292,7 @@
       <Reference name="OpenSim.Region.CoreModules"/>
       <Reference name="OpenSim.Region.Physics.Manager"/>
       <Reference name="OpenSim.Services.Interfaces"/>
-      
+
       <!-- Unit tests -->
       <Reference name="OpenSim.Tests.Common"/>
       <Reference name="Nini.dll"/>
@@ -3561,9 +3552,3 @@
 
   </Solution>
 </Prebuild>
-
-
-
-
-
-
