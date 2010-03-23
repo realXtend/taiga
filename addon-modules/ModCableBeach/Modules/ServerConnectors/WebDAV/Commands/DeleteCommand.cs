@@ -28,7 +28,8 @@ namespace ModCableBeach
             if (server.AuthenticateRequest(httpRequest, httpResponse, out username))
             {
                 Dictionary<string, HttpStatusCode> multiStatus = null;
-                HttpStatusCode status = server.DeleteResource(httpRequest.Url, username, out multiStatus);
+                string[] ifHeaders = httpRequest.Headers.GetValues("If");
+                HttpStatusCode status = server.DeleteResource(httpRequest.Url, username, out multiStatus, ifHeaders);
                 httpResponse.StatusCode = (int)status;
                 if (status == (HttpStatusCode)207 && multiStatus != null) //multiple status
                 {

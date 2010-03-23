@@ -1,0 +1,49 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2" namespace="ModCableBeach" assembly="ModCableBeach">
+
+  <class name="IWebDAVResource">
+    <id name="Id" type="int" unsaved-value="0">
+      <generator class="identity" />
+    </id>
+    <discriminator column="RESOURCE_TYPE" type="String"/>
+
+    <!--Required variables-->
+    <property name="Path"/>
+    <property name="ContentType"/>
+    <property name="ContentLength" type="int"/>
+    <property name="DisplayName"/>
+    <property name="ContentLanguage"/>
+    <property name="ResourceType"/>
+    <property name="CreationDate" type="DateTime" not-null="true"/>
+    <property name="LastModifiedDate" type="DateTime" not-null="true"/>
+
+    <!--Custom properties-->
+    <!--<list name="CustomProperties" generic="true" lazy="false">
+      <key column="Id"/>
+      <one-to-many class="WebDAVSharp.WebDAVProperty, WebDAVSharp"/>
+    </list>-->
+    <bag name="CustomProperties">
+      <key column="Id"/>
+      <one-to-many class="WebDAVProperty"/>
+    </bag>
+    <!--<list name="CustomProperties" table="ResourcesCustomProperties" cascade="all">
+      <key column="ResourceID"/>
+      <index column="Position"/>
+      <many-to-many class="WebDAVProperty">
+        <column name="Namespace"/>
+        <column name="Name"/>
+      </many-to-many>
+    </list>-->
+    
+    <!--Other variables-->
+    <property name="LastAccessedDate" type="DateTime" not-null="true"/>
+    
+    <!--Subclasses-->
+    <subclass name="WebDAVFile" discriminator-value="FILE">
+    </subclass>
+
+    <subclass name="WebDAVFolder" discriminator-value="FOLDER">
+    </subclass>
+  </class>
+
+</hibernate-mapping>

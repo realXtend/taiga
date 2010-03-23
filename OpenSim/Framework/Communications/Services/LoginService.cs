@@ -121,8 +121,11 @@ namespace OpenSim.Framework.Communications.Services
 
                 SniffLoginKey((Uri)request.Params[2], requestData);
 
+
+
                 bool GoodXML = (requestData.Contains("first") && requestData.Contains("last") &&
                                 (requestData.Contains("passwd") || requestData.Contains("web_login_key")));
+
 
                 string startLocationRequest = "last";
 

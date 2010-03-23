@@ -121,6 +121,11 @@ namespace ModCableBeach
             }
         }
 
+        public static void WriteCustomProperty(XmlTextWriter xmlWriter, WebDAVProperty resource, string property)
+        {
+            xmlWriter.WriteElementString(property, resource.Namespace, resource.Value); 
+        }
+
         public static string GetHttpStatusString(HttpStatusCode statusCode)
         {
             string response = "HTTP/1.1 " + (int)statusCode;

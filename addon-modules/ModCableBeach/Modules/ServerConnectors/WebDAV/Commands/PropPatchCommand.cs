@@ -86,8 +86,8 @@ namespace ModCableBeach
                         }
                     }
                     #endregion
-
-                    HttpStatusCode status = server.OnPropPatchConnector(username, httpRequest.Url, httpRequest.Url.AbsolutePath, nspace, setProperties, removeProperties, out multiStatus);
+                    string[] ifHeaders = httpRequest.Headers.GetValues("If"); 
+                    HttpStatusCode status = server.OnPropPatchConnector(username, httpRequest.Url, httpRequest.Url.AbsolutePath, nspace, setProperties, removeProperties, out multiStatus, ifHeaders);
                     httpResponse.StatusCode = (int)status;
                     if (status == (HttpStatusCode)207 && multiStatus != null)
                     {

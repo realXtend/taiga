@@ -133,6 +133,7 @@ namespace ModCableBeach
             WebDAVLockRequest lockRequest = new WebDAVLockRequest();
             lockRequest.Path = request.Url.AbsolutePath;
             lockRequest.RequestedTimeout = request.Headers.GetValues("timeout"); //can contain multiple values, for example: "Timeout: Infinite, Second-604800"
+            lockRequest.IfHeaders = request.Headers.GetValues("If"); //might be a request to refresh lock
 
             if (request.ContentLength != 0)
             {

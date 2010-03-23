@@ -10,6 +10,7 @@ namespace ModCableBeach
         public LockScope LockScope;
         public LockType LockType;
         public string[] RequestedTimeout;
+        public string[] IfHeaders;
         public string OwnerNamespaceUri = String.Empty;
         public string OwnerValue = String.Empty;
         public Dictionary<string, string> OwnerValues = new Dictionary<string, string>();

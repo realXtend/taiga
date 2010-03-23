@@ -26,7 +26,8 @@ namespace ModCableBeach
             string username;
             if (server.AuthenticateRequest(httpRequest, httpResponse, out username))
             {
-                System.Net.HttpStatusCode status = server.PutResource(httpRequest, httpRequest.Url.AbsolutePath, username);
+                string[] ifHeaders = httpRequest.Headers.GetValues("If");
+                System.Net.HttpStatusCode status = server.PutResource(httpRequest, httpRequest.Url.AbsolutePath, username, ifHeaders);
                 httpResponse.StatusCode = (int)status;
             }
 

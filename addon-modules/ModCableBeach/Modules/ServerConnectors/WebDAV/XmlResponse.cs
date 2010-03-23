@@ -136,8 +136,12 @@ namespace ModCableBeach
 
             xmlWriter.WriteStartElement("prop", "DAV:");
 
+            // Is asking explicitly allprops
+            bool allPropRequest=false;
+            if (davProperties.Count == 1 && davProperties.Contains("allprop")) { allPropRequest = true; }
+
             // Not specifying any properties is a request for all properties
-            if (davProperties.Count == 0)
+            if (davProperties.Count == 0 || allPropRequest)
             {
                 if (resource.IsFolder)
                     validProperties = new List<string>(FOLDER_ALLOWED_PROPERTIES);
@@ -160,6 +164,25 @@ namespace ModCableBeach
 
             for (int i = 0; i < validProperties.Count; i++)
                 WebDAVUtils.WriteProperty(xmlWriter, resource, validProperties[i]);
+
+            // Do we support custom properties?
+            if (davProperties.Count == 0 || allPropRequest)
+            {
+                foreach (WebDAVProperty davprop in resource.CustomProperties)
+                {
+                    WebDAVUtils.WriteCustomProperty(xmlWriter, davprop, davprop.Name);
+                }
+            }
+            else 
+            {
+                for (int i = 0; i < davProperties.Count; i++){
+                    foreach (WebDAVProperty davprop in resource.CustomProperties) {
+                        if (davprop.Name == davProperties[i]) {
+                            WebDAVUtils.WriteCustomProperty(xmlWriter, davprop, davprop.Name);
+                        }
+                    }
+                }            
+            }
 
             xmlWriter.WriteEndElement(); // prop
             xmlWriter.WriteEndElement(); // propstat

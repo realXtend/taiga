@@ -666,7 +666,6 @@ namespace OpenSim.Region.CoreModules.World.Land
 
         public void EventManagerOnObjectBeingRemovedFromScene(SceneObjectGroup obj)
         {
-            
             lock (m_landList)
             {
                 foreach (LandObject p in m_landList.Values)

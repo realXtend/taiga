@@ -66,7 +66,7 @@ namespace ModCableBeach
                 }
 
                 //If header might contain lock tokens, we need to pass them forward too
-                string[] ifHeaders = httpRequest.Headers.GetValues("if");
+                string[] ifHeaders = httpRequest.Headers.GetValues("If"); 
 
                 Dictionary<String, HttpStatusCode> multiStatusValues = null;
                 HttpStatusCode status;

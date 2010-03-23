@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<hibernate-mapping xmlns="urn:nhibernate-mapping-2.2" namespace="ModCableBeach" assembly="ModCableBeach">
+
+  <class name="WebDAVProperty">
+    <id name="Id" type="int" unsaved-value="0">
+      <generator class="identity" />
+    </id>
+
+    <property name="ResourceId"/>
+    <property name="Namespace"/>
+    <property name="Name"/>
+    <property name="Value"/>
+  </class>
+
+</hibernate-mapping>

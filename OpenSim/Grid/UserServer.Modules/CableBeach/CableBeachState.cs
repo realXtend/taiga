@@ -173,6 +173,7 @@ namespace OpenSim.Grid.UserServer.Modules
     public class AuthCookie
     {
         public string AuthToken;
+
         public Uri Identity;
         public UserProfileData UserProfile;
 

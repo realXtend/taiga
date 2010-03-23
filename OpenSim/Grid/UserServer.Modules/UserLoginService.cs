@@ -46,6 +46,7 @@ using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Services.Interfaces;
 using OpenSim.Services.Connectors;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
+using OpenSim.Grid.UserServer.Modules.RexLogin;
 
 namespace OpenSim.Grid.UserServer.Modules
 {
@@ -71,6 +72,8 @@ namespace OpenSim.Grid.UserServer.Modules
 
         protected BaseHttpServer m_httpServer;
 
+        private LoginSwitch m_LoginSwitch; 
+
         public IRegionProfileRouter RegionProfileService { get { return m_regionProfileService; } }
 
         public UserLoginService(
@@ -86,16 +89,20 @@ namespace OpenSim.Grid.UserServer.Modules
             m_regionProfileService = regionProfileService;
 
             m_GridService = new GridServicesConnector(config.GridServerURL.ToString());
+
+            m_LoginSwitch = new LoginSwitch(this, m_interInventoryService, m_InventoryService, m_GridService, config);
         }
 
         public void RegisterHandlers(BaseHttpServer httpServer, bool registerLLSDHandler, bool registerOpenIDHandlers)
         {
             m_httpServer = httpServer;
 
-            m_httpServer.AddXmlRPCHandler("login_to_simulator", XmlRpcLoginMethod);
+            //m_httpServer.AddXmlRPCHandler("login_to_simulator", XmlRpcLoginMethod);
+            m_httpServer.AddXmlRPCHandler("login_to_simulator", m_LoginSwitch.XmlRpcLoginMethodSwitch);
             m_httpServer.AddHTTPHandler("login", ProcessHTMLLogin);
             m_httpServer.AddXmlRPCHandler("set_login_params", XmlRPCSetLoginParams);
-            m_httpServer.AddXmlRPCHandler("check_auth_session", XmlRPCCheckAuthSession, false);
+            //m_httpServer.AddXmlRPCHandler("check_auth_session", XmlRPCCheckAuthSession, false);
+            m_httpServer.AddXmlRPCHandler("check_auth_session", m_LoginSwitch.XmlRPCCheckAuthSessionSwitch, false);
 
             if (registerLLSDHandler)
             {

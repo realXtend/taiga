@@ -77,12 +77,12 @@ namespace ModCableBeach
     public delegate IList<IWebDAVResource> PropFindCallback(string username, string path, DepthHeader depth);
     public delegate WebDAVLockResponse LockCallback(WebDAVLockRequest request);
     public delegate HttpStatusCode UnlockCallback(string path, string locktoken, string username);
-    public delegate HttpStatusCode MkcolCallback(string path, string username);
+    public delegate HttpStatusCode MkcolCallback(string path, string username, string[] ifHeaders);
     public delegate HttpStatusCode MoveCopyCallback(string username, Uri uri, string destination, DepthHeader depth, bool overwrite, string[] ifHeaders, out Dictionary<String, HttpStatusCode> multiStatusValues);
     public delegate HttpStatusCode GetCallback(OSHttpResponse response, string path, string username);
-    public delegate HttpStatusCode PutCallback(OSHttpRequest request, string path, string username);
-    public delegate HttpStatusCode DeleteCallback(Uri uri, string username, out Dictionary<string, HttpStatusCode> multiStatus);
-    public delegate HttpStatusCode PropPatchCallback(string username, Uri uri, string uriPath, string nspace, Dictionary<string, string> setProperties, List<string> removeProperties, out Dictionary<string, HttpStatusCode> multiStatus);
+    public delegate HttpStatusCode PutCallback(OSHttpRequest request, string path, string username, string[] ifHeaders);
+    public delegate HttpStatusCode DeleteCallback(Uri uri, string username, out Dictionary<string, HttpStatusCode> multiStatus, string[] ifHeaders);
+    public delegate HttpStatusCode PropPatchCallback(string username, Uri uri, string uriPath, string nspace, Dictionary<string, string> setProperties, List<string> removeProperties, out Dictionary<string, HttpStatusCode> multiStatus, string[] ifHeaders);
 
     public class WebDAVListener
     {
@@ -484,20 +484,20 @@ namespace ModCableBeach
             return HttpStatusCode.InternalServerError;
         }
 
-        internal HttpStatusCode CreateCollection(string path, string username)
+        internal HttpStatusCode CreateCollection(string path, string username, string[] ifheaders)
         {
             if (OnNewCol != null)
             {
-                return OnNewCol(path, username);
+                return OnNewCol(path, username, ifheaders);
             }
             return HttpStatusCode.MethodNotAllowed;
         }
 
-        internal HttpStatusCode OnMoveConnector(string username, Uri uri, string destination, DepthHeader depth, bool overwrite, string[] ifHeaders, out Dictionary<String, HttpStatusCode> multiStatusValues)
+        internal HttpStatusCode OnMoveConnector(string username, Uri uri, string destination, DepthHeader depth, bool overwrite, string[] if_headers, out Dictionary<String, HttpStatusCode> multiStatusValues)
         {
             if (OnMove != null)
             {
-                return OnMove(username, uri, destination, depth, overwrite, ifHeaders, out multiStatusValues);
+                return OnMove(username, uri, destination, depth, overwrite, if_headers, out multiStatusValues);
             }
             multiStatusValues = null;
             return HttpStatusCode.MethodNotAllowed;
@@ -512,20 +512,20 @@ namespace ModCableBeach
             return HttpStatusCode.MethodNotAllowed;
         }
 
-        internal HttpStatusCode PutResource(OSHttpRequest request, string path, string username)
+        internal HttpStatusCode PutResource(OSHttpRequest request, string path, string username, string[] ifHeaders)
         {
             if (OnPut != null)
             {
-                return OnPut(request, path, username);
+                return OnPut(request, path, username, ifHeaders);
             }
             return HttpStatusCode.Forbidden;
         }
 
-        internal HttpStatusCode DeleteResource(Uri uri, string username, out Dictionary<string, HttpStatusCode> multiStatus)
+        internal HttpStatusCode DeleteResource(Uri uri, string username, out Dictionary<string, HttpStatusCode> multiStatus, string[] ifHeaders)
         {
             if (OnDelete != null)
             {
-                return OnDelete(uri, username, out multiStatus);
+                return OnDelete(uri, username, out multiStatus, ifHeaders);
             }
             multiStatus = null;
             return HttpStatusCode.Forbidden;
@@ -541,11 +541,11 @@ namespace ModCableBeach
             return HttpStatusCode.Forbidden;
         }
 
-        internal HttpStatusCode OnPropPatchConnector(string username, Uri uri, string uriPath, string nspace, Dictionary<string, string> setProperties, List<string> removeProperties, out Dictionary<string, HttpStatusCode> multiStatus)
+        internal HttpStatusCode OnPropPatchConnector(string username, Uri uri, string uriPath, string nspace, Dictionary<string, string> setProperties, List<string> removeProperties, out Dictionary<string, HttpStatusCode> multiStatus, string[] ifHeaders)
         {
             if (OnPropPatch != null)
             {
-                return OnPropPatch(username, uri, uriPath, nspace, setProperties, removeProperties, out multiStatus);
+                return OnPropPatch(username, uri, uriPath, nspace, setProperties, removeProperties, out multiStatus, ifHeaders);
             }
             multiStatus = null;
             return HttpStatusCode.InternalServerError;
