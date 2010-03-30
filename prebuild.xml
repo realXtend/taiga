@@ -1140,7 +1140,7 @@
       <Reference name="DotNetOpenAuth.dll"/>
       <Reference name="CableBeachMessages.dll"/>
       <Reference name="Nini.dll"/>
-      <Reference name="ModularRex.dll"/>
+      <Reference name="ModularRex"/>
       <Reference name="OpenSim.Region.Framework"/>
 
       <Files>
