@@ -106,15 +106,15 @@ namespace OpenSim.Region.OptionalModules.World.TreePopulator
                 this.m_name = field[1].Trim();
                 this.m_frozen = (copsedef[0] == 'F');
                 this.m_tree_quantity = int.Parse(field[2]);
-                this.m_treeline_high = float.Parse(field[3]);
-                this.m_treeline_low = float.Parse(field[4]);
-                this.m_range = double.Parse(field[5]);
-                this.m_slope = double.Parse(field[6]);
-                this.m_tree_type = (Tree) Enum.Parse(typeof(Tree),field[7]);
-                this.m_seed_point = Vector3.Parse(field[8]);
-                this.m_initial_scale = Vector3.Parse(field[9]);
-                this.m_maximum_scale = Vector3.Parse(field[10]);
-                this.m_rate = Vector3.Parse(field[11]);
+                this.m_treeline_high = float.Parse(field[3], Culture.NumberFormatInfo);
+                this.m_treeline_low = float.Parse(field[4], Culture.NumberFormatInfo);
+                this.m_range = double.Parse(field[5], Culture.NumberFormatInfo);
+                this.m_slope = double.Parse(field[6], Culture.NumberFormatInfo);
+                this.m_tree_type = (Tree) Enum.Parse(typeof(Tree),field[6]);
+                this.m_seed_point = Vector3.Parse(field[7]);
+                this.m_initial_scale = Vector3.Parse(field[8]);
+                this.m_maximum_scale = Vector3.Parse(field[9]);
+                this.m_rate = Vector3.Parse(field[10]);
                 this.m_planted = true;
                 this.m_trees = new List<UUID>();
             }

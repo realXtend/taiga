@@ -40,49 +40,6 @@ namespace OpenSim.Server.Base
     public static class ServerUtils
     {
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        
-        public static string SLAssetTypeToContentType(int assetType)
-        {
-            switch (assetType)
-            {
-                case 0:
-                    return "image/jp2";
-                case 1:
-                    return "application/ogg";
-                case 2:
-                    return "application/x-metaverse-callingcard";
-                case 3:
-                    return "application/x-metaverse-landmark";
-                case 5:
-                    return "application/x-metaverse-clothing";
-                case 6:
-                    return "application/x-metaverse-primitive";
-                case 7:
-                    return "application/x-metaverse-notecard";
-                case 8:
-                    return "application/x-metaverse-folder";
-                case 10:
-                    return "application/x-metaverse-lsl";
-                case 11:
-                    return "application/x-metaverse-lso";
-                case 12:
-                    return "image/tga";
-                case 13:
-                    return "application/x-metaverse-bodypart";
-                case 17:
-                    return "audio/x-wav";
-                case 19:
-                    return "image/jpeg";
-                case 20:
-                    return "application/x-metaverse-animation";
-                case 21:
-                    return "application/x-metaverse-gesture";
-                case 22:
-                    return "application/x-metaverse-simstate";
-                default:
-                    return "application/octet-stream";
-            }
-        }
 
         public static  byte[] SerializeResult(XmlSerializer xs, object data)
         {

@@ -1039,10 +1039,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public int GetInaccurateNeighborCount()
         {
-            lock (m_neighbours)
-            {
-                return m_neighbours.Count;
-            }
+            return m_neighbours.Count;
         }
 
         // This is the method that shuts down the scene.
@@ -1813,14 +1810,22 @@ namespace OpenSim.Region.Framework.Scenes
             //m_log.DebugFormat(
             //    "[SCENE]: Scene.AddNewPrim() pcode {0} called for {1} in {2}", shape.PCode, ownerID, RegionInfo.RegionName);
 
+            SceneObjectGroup sceneObject = null;
+            
             // If an entity creator has been registered for this prim type then use that
             if (m_entityCreators.ContainsKey((PCode)shape.PCode))
-                return m_entityCreators[(PCode)shape.PCode].CreateEntity(ownerID, groupID, pos, rot, shape);
+            {
+                sceneObject = m_entityCreators[(PCode)shape.PCode].CreateEntity(ownerID, groupID, pos, rot, shape);
+            }
+            else
+            {
+                // Otherwise, use this default creation code;
+                sceneObject = new SceneObjectGroup(ownerID, pos, rot, shape);
+                AddNewSceneObject(sceneObject, true);
+                sceneObject.SetGroup(groupID, null);
+            }
 
-            // Otherwise, use this default creation code;
-            SceneObjectGroup sceneObject = new SceneObjectGroup(ownerID, pos, rot, shape);
-            AddNewSceneObject(sceneObject, true);
-            sceneObject.SetGroup(groupID, null);
+            sceneObject.ScheduleGroupForFullUpdate();
 
             return sceneObject;
         }
@@ -1848,7 +1853,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Add a newly created object to the scene
+        /// Add a newly created object to the scene.  Updates are also sent to viewers.
         /// </summary>
         /// <param name="sceneObject"></param>
         /// <param name="attachToBackup">
@@ -1857,8 +1862,25 @@ namespace OpenSim.Region.Framework.Scenes
         /// </param>
         public bool AddNewSceneObject(SceneObjectGroup sceneObject, bool attachToBackup)
         {
-            return m_sceneGraph.AddNewSceneObject(sceneObject, attachToBackup);
+            return AddNewSceneObject(sceneObject, attachToBackup, true);
         }
+        
+        /// <summary>
+        /// Add a newly created object to the scene
+        /// </summary>
+        /// <param name="sceneObject"></param>
+        /// <param name="attachToBackup">
+        /// If true, the object is made persistent into the scene.
+        /// If false, the object will not persist over server restarts
+        /// </param>
+        /// <param name="sendClientUpdates">
+        /// If true, updates for the new scene object are sent to all viewers in range.
+        /// If false, it is left to the caller to schedule the update
+        /// </param>
+        public bool AddNewSceneObject(SceneObjectGroup sceneObject, bool attachToBackup, bool sendClientUpdates)
+        {
+            return m_sceneGraph.AddNewSceneObject(sceneObject, attachToBackup, sendClientUpdates);
+        }        
 
         /// <summary>
         /// Delete every object from the scene
@@ -1976,6 +1998,23 @@ namespace OpenSim.Region.Framework.Scenes
                 return;
             }
 
+            if (grp.RootPart.RETURN_AT_EDGE)
+            {
+                // We remove the object here
+                try
+                {
+                    List<SceneObjectGroup> objects = new List<SceneObjectGroup>();
+                    objects.Add(grp);
+                    SceneObjectGroup[] objectsArray = objects.ToArray();
+                    returnObjects(objectsArray, UUID.Zero);
+                }
+                catch (Exception)
+                {
+                    m_log.Warn("[DATABASE]: exception when trying to return the prim that crossed the border.");
+                }
+                return;
+            }
+
             int thisx = (int)RegionInfo.RegionLocX;
             int thisy = (int)RegionInfo.RegionLocY;
             Vector3 EastCross = new Vector3(0.1f,0,0);
@@ -2044,19 +2083,25 @@ namespace OpenSim.Region.Framework.Scenes
                     Border crossedBordery = GetCrossedBorder(attemptedPosition + SouthCross, Cardinals.S);
                     //(crossedBorderx.BorderLine.Z / (int)Constants.RegionSize)
 
-                    if (crossedBordery.BorderLine.Z > 0)
+                    try
                     {
-                        pos.Y = ((pos.Y + crossedBordery.BorderLine.Z));
-                        changeY = (int)(crossedBordery.BorderLine.Z / (int)Constants.RegionSize);
-                    }
-                    else
-                        pos.Y = ((pos.Y + Constants.RegionSize));
+                        if (crossedBordery.BorderLine.Z > 0)
+                        {
+                            pos.Y = ((pos.Y + crossedBordery.BorderLine.Z));
+                            changeY = (int)(crossedBordery.BorderLine.Z / (int)Constants.RegionSize);
+                        }
+                        else
+                            pos.Y = ((pos.Y + Constants.RegionSize));
 
-                    newRegionHandle
-                        = Util.UIntsToLong((uint)((thisx - changeX) * Constants.RegionSize),
-                                           (uint)((thisy + changeY) * Constants.RegionSize));
-                    // x - 1
-                    // y + 1
+                        newRegionHandle
+                            = Util.UIntsToLong((uint)((thisx - changeX) * Constants.RegionSize),
+                                               (uint)((thisy + changeY) * Constants.RegionSize));
+                        // x - 1
+                        // y + 1
+                    }
+                    catch (Exception ex)
+                    {
+                    }
                 }
                 else
                 {
@@ -2406,9 +2451,14 @@ namespace OpenSim.Region.Framework.Scenes
             return successYN;
         }
 
+        /// <summary>
+        /// Called when objects or attachments cross the border between regions.
+        /// </summary>
+        /// <param name="sog"></param>
+        /// <returns></returns>
         public bool IncomingCreateObject(ISceneObject sog)
         {
-            //m_log.Debug(" >>> IncomingCreateObject <<< " + ((SceneObjectGroup)sog).AbsolutePosition + " deleted? " + ((SceneObjectGroup)sog).IsDeleted);
+            //m_log.Debug(" >>> IncomingCreateObject(sog) <<< " + ((SceneObjectGroup)sog).AbsolutePosition + " deleted? " + ((SceneObjectGroup)sog).IsDeleted);
             SceneObjectGroup newObject;
             try
             {
@@ -2425,7 +2475,12 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.DebugFormat("[SCENE]: Problem adding scene object {0} in {1} ", sog.UUID, RegionInfo.RegionName);
                 return false;
             }
+            
             newObject.RootPart.ParentGroup.CreateScriptInstances(0, false, DefaultScriptEngine, 1);
+
+            // Do this as late as possible so that listeners have full access to the incoming object
+            EventManager.TriggerOnIncomingSceneObject(newObject);
+            
             return true;
         }
 
@@ -2437,6 +2492,8 @@ namespace OpenSim.Region.Framework.Scenes
         /// <returns>False</returns>
         public virtual bool IncomingCreateObject(UUID userID, UUID itemID)
         {
+            //m_log.DebugFormat(" >>> IncomingCreateObject(userID, itemID) <<< {0} {1}", userID, itemID);
+            
             ScenePresence sp = GetScenePresence(userID);
             if (sp != null)
             {
@@ -2471,7 +2528,7 @@ namespace OpenSim.Region.Framework.Scenes
             foreach (SceneObjectPart p in sceneObject.Children.Values)
                 p.LocalId = 0;
 
-            if ((sceneObject.RootPart.Shape.PCode == (byte)PCode.Prim) && (sceneObject.RootPart.Shape.State != 0)) // Attachment
+            if (sceneObject.IsAttachmentCheckFull()) // Attachment
             {
                 sceneObject.RootPart.AddFlag(PrimFlags.TemporaryOnRez);
                 sceneObject.RootPart.AddFlag(PrimFlags.Phantom);
@@ -2496,20 +2553,15 @@ namespace OpenSim.Region.Framework.Scenes
 
                     //RootPrim.SetParentLocalId(parentLocalID);
 
-                    m_log.DebugFormat("[ATTACHMENT]: Received " +
-                                "attachment {0}, inworld asset id {1}",
-                                //grp.RootPart.LastOwnerID.ToString(),
-                                grp.GetFromItemID(),
-                                grp.UUID.ToString());
+                    m_log.DebugFormat(
+                        "[ATTACHMENT]: Received attachment {0}, inworld asset id {1}", grp.GetFromItemID(), grp.UUID);
 
                     //grp.SetFromAssetID(grp.RootPart.LastOwnerID);
-                    m_log.DebugFormat("[ATTACHMENT]: Attach " +
-                            "to avatar {0} at position {1}",
-                            sp.UUID.ToString(), grp.AbsolutePosition);
-                    AttachObject(sp.ControllingClient,
-                            grp.LocalId, (uint)0,
-                            grp.GroupRotation,
-                            grp.AbsolutePosition, false);
+                    m_log.DebugFormat(
+                        "[ATTACHMENT]: Attach to avatar {0} at position {1}", sp.UUID, grp.AbsolutePosition);
+                    
+                    AttachObject(
+                        sp.ControllingClient, grp.LocalId, (uint)0, grp.GroupRotation, grp.AbsolutePosition, false);
                     RootPrim.RemFlag(PrimFlags.TemporaryOnRez);
                     grp.SendGroupFullUpdate();
                 }
@@ -2518,7 +2570,6 @@ namespace OpenSim.Region.Framework.Scenes
                     RootPrim.RemFlag(PrimFlags.TemporaryOnRez);
                     RootPrim.AddFlag(PrimFlags.TemporaryOnRez);
                 }
-
             }
             else
             {
@@ -2678,6 +2729,7 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnGrabUpdate += ProcessObjectGrabUpdate; 
             client.OnDeGrabObject += ProcessObjectDeGrab;
             client.OnUndo += m_sceneGraph.HandleUndo;
+            client.OnRedo += m_sceneGraph.HandleRedo;
             client.OnObjectDescription += m_sceneGraph.PrimDescription;
             client.OnObjectDrop += m_sceneGraph.DropObject;
             client.OnObjectSaleInfo += ObjectSaleInfo;
@@ -2832,6 +2884,7 @@ namespace OpenSim.Region.Framework.Scenes
             client.OnGrabObject -= ProcessObjectGrab;
             client.OnDeGrabObject -= ProcessObjectDeGrab;
             client.OnUndo -= m_sceneGraph.HandleUndo;
+            client.OnRedo -= m_sceneGraph.HandleRedo;
             client.OnObjectDescription -= m_sceneGraph.PrimDescription;
             client.OnObjectDrop -= m_sceneGraph.DropObject;
             client.OnObjectSaleInfo -= ObjectSaleInfo;
@@ -3114,7 +3167,6 @@ namespace OpenSim.Region.Framework.Scenes
                 m_log.DebugFormat("[APPEARANCE]: Appearance not found in {0}, returning default", RegionInfo.RegionName);
                 appearance = new AvatarAppearance(client.AgentId);
             }
-
         }
 
         /// <summary>
@@ -3292,7 +3344,6 @@ namespace OpenSim.Region.Framework.Scenes
             }
             else
                 m_log.Debug("[SCENE]: Unable to register with InterregionCommsIn");
-
         }
 
         /// <summary>
