@@ -634,9 +634,9 @@ namespace OpenSim.Grid.UserServer.Modules
                     UUID RegionID = new UUID((string)requestData["region_uuid"]);
                     ulong regionhandle = (ulong)Convert.ToInt64((string)requestData["region_handle"]);
                     Vector3 position = new Vector3(
-                        (float)Convert.ToDecimal((string)requestData["region_pos_x"], Culture.NumberFormatInfo),
-                        (float)Convert.ToDecimal((string)requestData["region_pos_y"], Culture.NumberFormatInfo),
-                        (float)Convert.ToDecimal((string)requestData["region_pos_z"], Culture.NumberFormatInfo));
+                        (float)Convert.ToDecimal(((string)requestData["region_pos_x"]).Replace(',','.'), Culture.NumberFormatInfo),
+                        (float)Convert.ToDecimal(((string)requestData["region_pos_y"]).Replace(',','.'), Culture.NumberFormatInfo),
+                        (float)Convert.ToDecimal(((string)requestData["region_pos_z"]).Replace(',','.'), Culture.NumberFormatInfo));
                     Vector3 lookat = new Vector3(
                         (float)Convert.ToDecimal((string)requestData["lookat_x"], Culture.NumberFormatInfo),
                         (float)Convert.ToDecimal((string)requestData["lookat_y"], Culture.NumberFormatInfo),

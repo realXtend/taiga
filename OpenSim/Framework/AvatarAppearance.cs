@@ -515,7 +515,7 @@ namespace OpenSim.Framework
             }
 
             
-            AvatarHeight = (float)Convert.ToDouble((string)h["avatar_height"]);
+            AvatarHeight = (float)Convert.ToDouble(((string)h["avatar_height"]).Replace(',','.'));
 
             m_wearables = new AvatarWearable[MAX_WEARABLES];
             for (int i = 0; i < MAX_WEARABLES; i++)
