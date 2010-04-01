@@ -57,7 +57,17 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
             bool RexXML = (requestData.Contains("account") && requestData.Contains("sessionhash"));
             if (RexXML) { return this.m_RealXtendLogin.XmlRpcLoginMethod(request, remoteClient); }
 
-            return m_UserLoginService.XmlRpcLoginMethod(request, remoteClient);
+            XmlRpcResponse response = m_UserLoginService.XmlRpcLoginMethod(request, remoteClient);
+
+            if (requestData.Contains("version"))
+            {
+                if (((string)requestData["version"]).StartsWith("realXtend"))
+                {
+                    ((Hashtable)response.Value)["rex"] = "running rex mode";
+                }
+            }
+
+            return response;
         }
 
         public XmlRpcResponse XmlRPCCheckAuthSessionSwitch(XmlRpcRequest request, IPEndPoint remoteClient)
