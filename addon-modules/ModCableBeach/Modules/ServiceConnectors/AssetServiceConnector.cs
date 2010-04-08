@@ -286,7 +286,7 @@ namespace ModCableBeach
                 asset = m_Cache.Get(id);
                 if (asset != null)
                 {
-                    Util.FireAndForget(delegate(object o) { handler(id, sender, asset); });
+                    handler(id, sender, asset);
                     return true;
                 }
             }
