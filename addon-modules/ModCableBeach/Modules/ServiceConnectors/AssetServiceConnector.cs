@@ -175,6 +175,8 @@ namespace ModCableBeach
 
             AssetMetadata metadata = null;
             Uri assetMetadataUri = GetAssetUri(id, "metadata");
+            if (id.Equals(UUID.Zero.ToString()))
+                return null;
 
             // Remote metadata request
             CapsClient request = new CapsClient(assetMetadataUri);
