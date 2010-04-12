@@ -26,7 +26,7 @@ using OpenMetaverse.Http;
 
 namespace OpenSim.Grid.UserServer.Modules.RexLogin
 {
-    class LoginSwitch : RexLoginModule
+    public class LoginSwitch : RexLoginModule
     {
         // RexLogin module declares m_log private so it cant be used here
         // protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);

@@ -30,7 +30,7 @@ using System.Text.RegularExpressions;
 
 namespace OpenSim.Grid.UserServer.Modules.RexLogin
 {
-    partial class RealXtendLogin : RexLoginModule
+    public partial class RealXtendLogin : RexLoginModule
     {
         protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 

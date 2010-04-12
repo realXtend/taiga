@@ -345,14 +345,14 @@ namespace OpenSim.Grid.UserServer.Modules
             }
         }
 
-        static bool TryGetUserFilesystemService(Uri identity, out Service filesystemService)
+        internal static bool TryGetUserFilesystemService(Uri identity, out Service filesystemService)
         {
             // FIXME: Do LRDD on the user identity URL to get a list of user-supplied services
             filesystemService = null;
             return false;
         }
 
-        static bool TryGetOrCreateUser(string serverHostname, Uri identity, string firstName, string lastName, string email, string authMethod,
+        internal static bool TryGetOrCreateUser(string serverHostname, Uri identity, string firstName, string lastName, string email, string authMethod,
             out UserProfileData profile)
         {
             profile = null;
@@ -503,7 +503,7 @@ namespace OpenSim.Grid.UserServer.Modules
             }
         }
 
-        static void GetTrustedCapabilities(Uri identity, ServiceRequestsData stateData)
+        internal static void GetTrustedCapabilities(Uri identity, ServiceRequestsData stateData)
         {
             m_log.Debug("[CABLE BEACH LOGIN]: Looking for trusted services, " + stateData.ServiceRequirements.Count + " service requirements and " +
                 stateData.Services.Count + " services total");
@@ -569,7 +569,7 @@ namespace OpenSim.Grid.UserServer.Modules
             }
         }
 
-        static bool GetUntrustedCapabilities(OSHttpRequest httpRequest, ServiceRequestsData stateData, out OutgoingWebResponse webResponse, out string requestToken)
+        internal static bool GetUntrustedCapabilities(OSHttpRequest httpRequest, ServiceRequestsData stateData, out OutgoingWebResponse webResponse, out string requestToken)
         {
             webResponse = null;
             requestToken = null;
