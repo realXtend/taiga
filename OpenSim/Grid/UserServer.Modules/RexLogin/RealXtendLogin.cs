@@ -282,9 +282,10 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                             string simIp = startReg.IP.ToString();
                             logResponse.SimPort = (uint)startReg.Port;
                             logResponse.SimAddress = simIp;
+                            string error;
 
                             if (TryPrepareLogin(avatar,
-                                startReg, startPosition, clientVersion, client.Address, ref loginData, HttpCertificate, logResponse.CircuitCode))
+                                startReg, startPosition, clientVersion, client.Address, ref loginData, HttpCertificate, logResponse.CircuitCode, out error))
                             {
                                 m_log.Info("[RealXtendLogin] Login to " + startReg.Name + " prepared for " + avatar.Identity + ", returning response");
                                 
@@ -299,8 +300,9 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                             {
                                 m_log.Info("[RealXtendLogin] Preparing Login to " + startReg.Name + " failed " + avatar.Identity
                                     + ", returning failure response");
-                                OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
+                                XmlRpcResponse rep = OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
                                     "Preparing login fail", "Preparing Login to " + startReg.Name + " failed", false);
+                                return rep;
                             }
                         }
                         else
@@ -336,8 +338,9 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
 
         private bool TryPrepareLogin(Avatar avatar, CableBeachMessages.RegionInfo startRegion, Vector3 startPosition,
             string clientVersion, System.Net.IPAddress clientIP, ref LindenLoginData response, X509Certificate2 httpCertificate,
-            int circuitCode)
+            int circuitCode, out string error)
         {
+            error = string.Empty;
             EnableClientMessage message = new EnableClientMessage();
             message.Identity = avatar.Identity;
             message.AgentID = avatar.ID;
@@ -381,18 +384,21 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                     }
                     else
                     {
+                        error = reply.Message;
                         m_log.Error("[LindenLoginHelper] enable_client call to region " + startRegion.Name + " for login from " + avatar.Identity +
                             " failed, did not return a seed capability");
                     }
                 }
                 else
                 {
+                    error = "could not contact or invalid response";
                     m_log.Error("[LindenLoginHelper] enable_client call to region " + startRegion.Name + " for login from " + avatar.Identity +
                         " failed, could not contact or invalid response");
                 }
             }
             else
             {
+                error = "region does not have an enable_client capability";
                 m_log.Error("[LindenLoginHelper] enable_client call failed, region " + startRegion.Name +
                     " does not have an enable_client capability");
             }

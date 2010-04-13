@@ -187,6 +187,9 @@ namespace ModCableBeach
         {
             reason = String.Empty;
 
+            if (!CheckEstatePermissions(agent, out reason))
+                return false;
+
             m_Log.InfoFormat(
                 "[CABLE BEACH WORLD]: Region {0} authenticated and authorized incoming {1} agent {2} {3} {4} (circuit code {5})",
                 Scene.RegionInfo.RegionName, (agent.child ? "child" : "root"), agent.firstname, agent.lastname,
@@ -269,6 +272,60 @@ namespace ModCableBeach
                 return estateModule.GetRegionFlags();
             else
                 return 72458694; // Found this undocumented number in OpenSim
+        }
+
+        protected bool CheckEstatePermissions(AgentCircuitData agent, out string reason)
+        {
+            reason = String.Empty;
+
+            if (Scene.RegionInfo.EstateSettings.IsBanned(agent.AgentID))
+            {
+                m_Log.WarnFormat("[CONNECTION BEGIN]: Denied access to: {0} ({1} {2}) at {3} because the user is on the banlist",
+                                 agent.AgentID, agent.firstname, agent.lastname, Scene.RegionInfo.RegionName);
+                reason = String.Format("Denied access to region {0}: You have been banned from that region.",
+                                       Scene.RegionInfo.RegionName);
+                return false;
+            }
+
+            IGroupsModule groupsModule =
+                    Scene.RequestModuleInterface<IGroupsModule>();
+
+            List<UUID> agentGroups = new List<UUID>();
+
+            if (groupsModule != null)
+            {
+                GroupMembershipData[] GroupMembership =
+                        groupsModule.GetMembershipData(agent.AgentID);
+
+                for (int i = 0; i < GroupMembership.Length; i++)
+                    agentGroups.Add(GroupMembership[i].GroupID);
+            }
+
+            bool groupAccess = false;
+
+            UUID[] estateGroups = Scene.RegionInfo.EstateSettings.EstateGroups;
+
+            foreach (UUID group in estateGroups)
+            {
+                if (agentGroups.Contains(group))
+                {
+                    groupAccess = true;
+                    break;
+                }
+            }
+
+            if (!Scene.RegionInfo.EstateSettings.PublicAccess &&
+                !Scene.RegionInfo.EstateSettings.HasAccess(agent.AgentID) &&
+                !groupAccess)
+            {
+                m_Log.WarnFormat("[CONNECTION BEGIN]: Denied access to: {0} ({1} {2}) at {3} because the user does not have access to the estate",
+                                 agent.AgentID, agent.firstname, agent.lastname, Scene.RegionInfo.RegionName);
+                reason = String.Format("Denied access to private region {0}: You are not on the access list for that region.",
+                                       Scene.RegionInfo.RegionName);
+                return false;
+            }
+
+            return true;
         }
     }
 }
