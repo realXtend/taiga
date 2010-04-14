@@ -1,0 +1,27 @@
+   <Project name="EstateManagementModule" frameworkVersion="v3_5" path="addon-modules/EstateManagement/EstateManagementModule" type="Library">
+     <Configuration name="Debug">
+       <Options>
+         <OutputPath>../../../bin/</OutputPath>
+       </Options>
+     </Configuration>
+     <Configuration name="Release">
+       <Options>
+         <OutputPath>../../../bin/</OutputPath>
+       </Options>
+     </Configuration>
+
+     <ReferencePath>../../../bin/</ReferencePath>
+     <Reference name="System"/>
+     <Reference name="System.Xml"/>
+     <Reference name="log4net"/>
+     <Reference name="Nini"/>
+     <Reference name="System.Data"/>
+     <Reference name="OpenSim.Framework"/>
+     <Reference name="OpenSim.Framework.Console"/>
+     <Reference name="OpenSim.Region.Framework"/>
+     <Reference name="OpenMetaverseTypes"/>
+     <Files>
+       <Match pattern="*.cs" recurse="true"/>
+       <!--<Match path="Resources" pattern="*.xml" buildAction="EmbeddedResource" recurse="true"/>-->
+     </Files>
+   </Project>
