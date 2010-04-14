@@ -299,9 +299,9 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                             else
                             {
                                 m_log.Info("[RealXtendLogin] Preparing Login to " + startReg.Name + " failed " + avatar.Identity
-                                    + ", returning failure response");
+                                    + ", returning failure response, " + error);
                                 XmlRpcResponse rep = OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
-                                    "Preparing login fail", "Preparing Login to " + startReg.Name + " failed", false);
+                                    "Preparing login fail", "Preparing Login to " + startReg.Name + " failed: " + error, false);
                                 return rep;
                             }
                         }
