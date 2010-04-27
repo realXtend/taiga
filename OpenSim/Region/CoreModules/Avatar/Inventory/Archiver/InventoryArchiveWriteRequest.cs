@@ -72,7 +72,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
         /// <value>
         /// Used to collect the uuids of the assets that we need to save into the archive
         /// </value>
-        protected Dictionary<UUID, int> m_assetUuids = new Dictionary<UUID, int>();
+        protected Dictionary<UUID, AssetType> m_assetUuids = new Dictionary<UUID, AssetType>();
 
         /// <value>
         /// Used to collect the uuids of the users that we need to save into the archive
@@ -304,7 +304,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Inventory.Archiver
             }
             
             new AssetsRequest(
-                new AssetsArchiver(m_archiveWriter), m_assetUuids.Keys, 
+                new AssetsArchiver(m_archiveWriter), m_assetUuids, 
                 m_scene.AssetService, ReceivedAllAssets).Execute();
         }
 

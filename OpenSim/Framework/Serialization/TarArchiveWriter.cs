@@ -208,7 +208,8 @@ namespace OpenSim.Framework.Serialization
                 m_bw.Write(header);
     
                 // Write out data
-                m_bw.Write(data);
+                if (data.Length > 0)
+                    m_bw.Write(data);
     
                 if (data.Length % 512 != 0)
                 {
