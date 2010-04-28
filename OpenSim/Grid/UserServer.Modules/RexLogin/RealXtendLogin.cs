@@ -26,6 +26,7 @@ using OpenMetaverse.Http;
 //using Mono.Security.X509;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
+using OpenSim.Framework.Statistics;
 
 
 namespace OpenSim.Grid.UserServer.Modules.RexLogin
@@ -275,41 +276,56 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                         CableBeachMessages.RegionInfo startReg;
                         Vector3 startPosition;
 
-                        
-
-                        if (TryGetStartingRegion(avatar, startLocationRequest, ref loginData, out startReg, out startPosition))
+                        if (m_UserLoginService.CustomiseResponse(logResponse, (UserProfileData)userProfile, startLocationRequest, client))
                         {
-                            string simIp = startReg.IP.ToString();
-                            logResponse.SimPort = (uint)startReg.Port;
-                            logResponse.SimAddress = simIp;
-                            string error;
+                            userProfile.LastLogin = userProfile.CurrentAgent.LoginTime;
+                            UserProfileData t_userData = (UserProfileData)userProfile;
+                            m_UserLoginService.CommitAgent(ref t_userData);
+                            userProfile = (RexUserProfileData)t_userData;
 
-                            if (TryPrepareLogin(avatar,
-                                startReg, startPosition, clientVersion, client.Address, ref loginData, HttpCertificate, logResponse.CircuitCode, out error))
-                            {
-                                m_log.Info("[RealXtendLogin] Login to " + startReg.Name + " prepared for " + avatar.Identity + ", returning response");
-                                
-                                userProfile.CurrentAgent.AgentOnline = true;
-                                AuthenticationService.UpdateUserAgent(agentID.ToString(),
-                                    startReg.Handle.ToString(), userProfile.CurrentAgent.Position.ToString(),
-                                    startReg.ToString(), userProfile.AuthUrl);
-                                
-                                return logResponse.ToXmlRpcResponse();
-                            }
-                            else
-                            {
-                                m_log.Info("[RealXtendLogin] Preparing Login to " + startReg.Name + " failed " + avatar.Identity
-                                    + ", returning failure response, " + error);
-                                XmlRpcResponse rep = OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
-                                    "Preparing login fail", "Preparing Login to " + startReg.Name + " failed: " + error, false);
-                                return rep;
-                            }
+                            if (StatsManager.UserStats != null)
+                                StatsManager.UserStats.AddSuccessfulLogin();
+
+                            return logResponse.ToXmlRpcResponse();
                         }
                         else
                         {
-                            m_log.ErrorFormat("[LOGIN END]: XMLRPC informing user {0} that login failed due to an unavailable region", userProfile.Name);
                             return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateLoginNoRegionResponse();
                         }
+
+                        //if (TryGetStartingRegion(avatar, startLocationRequest, ref loginData, out startReg, out startPosition))
+                        //{
+                        //    string simIp = startReg.IP.ToString();
+                        //    logResponse.SimPort = (uint)startReg.Port;
+                        //    logResponse.SimAddress = simIp;
+                        //    string error;
+
+                        //    if (TryPrepareLogin(avatar,
+                        //        startReg, startPosition, clientVersion, client.Address, ref loginData, HttpCertificate, logResponse.CircuitCode, out error))
+                        //    {
+                        //        m_log.Info("[RealXtendLogin] Login to " + startReg.Name + " prepared for " + avatar.Identity + ", returning response");
+                                
+                        //        userProfile.CurrentAgent.AgentOnline = true;
+                        //        AuthenticationService.UpdateUserAgent(agentID.ToString(),
+                        //            startReg.Handle.ToString(), userProfile.CurrentAgent.Position.ToString(),
+                        //            startReg.ToString(), userProfile.AuthUrl);
+                                
+                        //        return logResponse.ToXmlRpcResponse();
+                        //    }
+                        //    else
+                        //    {
+                        //        m_log.Info("[RealXtendLogin] Preparing Login to " + startReg.Name + " failed " + avatar.Identity
+                        //            + ", returning failure response, " + error);
+                        //        XmlRpcResponse rep = OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
+                        //            "Preparing login fail", "Preparing Login to " + startReg.Name + " failed: " + error, false);
+                        //        return rep;
+                        //    }
+                        //}
+                        //else
+                        //{
+                        //    m_log.ErrorFormat("[LOGIN END]: XMLRPC informing user {0} that login failed due to an unavailable region", userProfile.Name);
+                        //    return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateLoginNoRegionResponse();
+                        //}
                         return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateLoginInternalErrorResponse();
                     }
                     catch (Exception e)
