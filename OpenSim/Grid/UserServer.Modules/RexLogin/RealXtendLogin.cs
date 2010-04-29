@@ -53,7 +53,6 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
         protected static IInterServiceInventoryServices m_interInventoryService;
         protected static IInventoryService m_InventoryService;
         protected LoginSwitch m_LoginSwitch;
-        protected static OpenSimMap m_OpenSimMap;
 
         public RealXtendLogin(UserLoginService service,
                             IInterServiceInventoryServices interInventoryService,
@@ -70,7 +69,6 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
             m_UserConfig = config;
             m_defaultHomeX = m_UserConfig.DefaultX;
             m_defaultHomeY = m_UserConfig.DefaultY;
-            m_OpenSimMap = new OpenSimMap(config.GridServerURL, m_GridService);
         }
 
         public override XmlRpcResponse XmlRpcLoginMethod(XmlRpcRequest request, IPEndPoint client)
@@ -228,9 +226,7 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
 
                         logResponse.InventoryLibRoot = InventoryLibRoot;
                         
-                        //logResponse.InventoryLibraryOwner = GetLibraryOwner();
                         logResponse.InventoryLibraryOwner = CableBeachState.LoginService.GetLibraryOwner();
-                        //logResponse.InventoryLibrary = GetInventoryLibrary();
                         logResponse.InventoryLibrary = CableBeachState.LoginService.GetInventoryLibrary();
             
                         logResponse.CircuitCode = Util.RandomClass.Next();
@@ -266,15 +262,9 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                             , UriKind.Absolute, out avatar.Identity))
                         {
                             m_log.Error("[RealXtendLogin]: Failed to parse avatar identity ");
-                            OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
+                            return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
                                 "Failed to parse avatar identity", "Failed to parse avatar identity for " + account, false);
                         }
-
-                        OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginData loginData = SetUpLindenLoginData(avatar, account,
-                            logResponse.Message, userProfile.CurrentAgent.SessionID);
-
-                        CableBeachMessages.RegionInfo startReg;
-                        Vector3 startPosition;
 
                         if (m_UserLoginService.CustomiseResponse(logResponse, (UserProfileData)userProfile, startLocationRequest, client))
                         {
@@ -308,41 +298,6 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                         {
                             return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateLoginNoRegionResponse();
                         }
-
-                        //if (TryGetStartingRegion(avatar, startLocationRequest, ref loginData, out startReg, out startPosition))
-                        //{
-                        //    string simIp = startReg.IP.ToString();
-                        //    logResponse.SimPort = (uint)startReg.Port;
-                        //    logResponse.SimAddress = simIp;
-                        //    string error;
-
-                        //    if (TryPrepareLogin(avatar,
-                        //        startReg, startPosition, clientVersion, client.Address, ref loginData, HttpCertificate, logResponse.CircuitCode, out error))
-                        //    {
-                        //        m_log.Info("[RealXtendLogin] Login to " + startReg.Name + " prepared for " + avatar.Identity + ", returning response");
-                                
-                        //        userProfile.CurrentAgent.AgentOnline = true;
-                        //        AuthenticationService.UpdateUserAgent(agentID.ToString(),
-                        //            startReg.Handle.ToString(), userProfile.CurrentAgent.Position.ToString(),
-                        //            startReg.ToString(), userProfile.AuthUrl);
-                                
-                        //        return logResponse.ToXmlRpcResponse();
-                        //    }
-                        //    else
-                        //    {
-                        //        m_log.Info("[RealXtendLogin] Preparing Login to " + startReg.Name + " failed " + avatar.Identity
-                        //            + ", returning failure response, " + error);
-                        //        XmlRpcResponse rep = OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateFailureResponse(
-                        //            "Preparing login fail", "Preparing Login to " + startReg.Name + " failed: " + error, false);
-                        //        return rep;
-                        //    }
-                        //}
-                        //else
-                        //{
-                        //    m_log.ErrorFormat("[LOGIN END]: XMLRPC informing user {0} that login failed due to an unavailable region", userProfile.Name);
-                        //    return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateLoginNoRegionResponse();
-                        //}
-                        return OpenSim.Grid.UserServer.Modules.RexLogin.LindenLoginHelper.CreateLoginInternalErrorResponse();
                     }
                     catch (Exception e)
                     {
@@ -399,77 +354,6 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
         {
             return false;
         }
-
-        private bool TryPrepareLogin(Avatar avatar, CableBeachMessages.RegionInfo startRegion, Vector3 startPosition,
-            string clientVersion, System.Net.IPAddress clientIP, ref LindenLoginData response, X509Certificate2 httpCertificate,
-            int circuitCode, out string error)
-        {
-            error = string.Empty;
-            EnableClientMessage message = new EnableClientMessage();
-            message.Identity = avatar.Identity;
-            message.AgentID = avatar.ID;
-            message.Attributes = avatar.Attributes;
-            message.CallbackUri = null;
-            message.ChildAgent = false;
-            //message.CircuitCode = LindenLoginHelper.CreateCircuitCode();
-            message.CircuitCode = circuitCode;
-            message.ClientVersion = clientVersion;
-            message.IP = clientIP;
-            message.RegionHandle = startRegion.Handle;
-            message.SecureSessionID = response.SecureSessionID;
-            message.Services = avatar.Services.ToMessageDictionary();
-            Dictionary<Uri, Uri> avStrgDict = new Dictionary<Uri, Uri>();
-            avStrgDict.Add(RexAvatarAttributes.AVATAR_STORAGE_URL, avatar.Attributes[RexAvatarAttributes.AVATAR_STORAGE_URL].AsUri());
-            message.Services.Add(RexAvatarAttributes.AVATAR_STORAGE_URL, avStrgDict);
-            message.SessionID = response.SessionID;
-
-            Uri enableClientCap;
-            if (startRegion.Capabilities.TryGetValue(new Uri(CableBeachServices.SIMULATOR_ENABLE_CLIENT), out enableClientCap))
-            {
-                CapsClient request = (httpCertificate != null) ?
-                new CapsClient(enableClientCap, httpCertificate) :
-                new CapsClient(enableClientCap);
-
-                OSDMap responseMap = request.GetResponse(message.Serialize(), OSDFormat.Json, LindenLoginHelper.REQUEST_TIMEOUT) as OSDMap;
-
-                if (responseMap != null)
-                {
-                    EnableClientReplyMessage reply = new EnableClientReplyMessage();
-                    reply.Deserialize(responseMap);
-
-                    if (reply.SeedCapability != null)
-                    {
-                        m_log.Debug("enable_client succeeded, sent circuit code " + message.CircuitCode + " and received seed capability " +
-                            reply.SeedCapability + " from " + enableClientCap);
-
-                        response.CircuitCode = message.CircuitCode;
-                        response.SeedCapability = reply.SeedCapability.ToString();
-                        return true;
-                    }
-                    else
-                    {
-                        error = reply.Message;
-                        m_log.Error("[LindenLoginHelper] enable_client call to region " + startRegion.Name + " for login from " + avatar.Identity +
-                            " failed, did not return a seed capability");
-                    }
-                }
-                else
-                {
-                    error = "could not contact or invalid response";
-                    m_log.Error("[LindenLoginHelper] enable_client call to region " + startRegion.Name + " for login from " + avatar.Identity +
-                        " failed, could not contact or invalid response");
-                }
-            }
-            else
-            {
-                error = "region does not have an enable_client capability";
-                m_log.Error("[LindenLoginHelper] enable_client call failed, region " + startRegion.Name +
-                    " does not have an enable_client capability");
-            }
-
-            return false;
-        }
-
 
     }
 }
