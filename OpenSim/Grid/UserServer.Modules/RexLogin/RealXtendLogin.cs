@@ -318,11 +318,11 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
 
         }
 
-        public void SendAvatarUrlXmlRpc(string ip, int port, UUID id, string url)
+        public void SendAvatarUrlXmlRpc(string ip, int port, UUID agentId, string avatarUrl)
         {
             Hashtable parms = new Hashtable();
-            parms.Add("AgentID", id.ToString());
-            parms.Add("AvatarURL", url);
+            parms.Add("AgentID", agentId.ToString());
+            parms.Add("AvatarURL", avatarUrl);
             XmlRpcResponse resp = Util.XmlRpcCommand("http://"+ip + ":" + port.ToString(), "realXtend_avatar_url", parms);
             if (resp.Value is Hashtable)
             {
