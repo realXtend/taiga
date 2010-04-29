@@ -286,6 +286,22 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                             if (StatsManager.UserStats != null)
                                 StatsManager.UserStats.AddSuccessfulLogin();
 
+                            try
+                            {
+
+                                if (!String.IsNullOrEmpty(logResponse.SeedCapability))
+                                {
+                                    Uri uri = new Uri(logResponse.SeedCapability);
+                                    logResponse.SimHttpPort = (uint)uri.Port;
+                                }
+
+                                SendAvatarUrlXmlRpc(logResponse.SimAddress, (int)logResponse.SimHttpPort, logResponse.AgentID, avatar.Attributes[RexAvatarAttributes.AVATAR_STORAGE_URL].AsString());
+                            }
+                            catch (Exception e)
+                            {
+                                m_log.ErrorFormat("[REXLOGIN]: Failed to send avatar url to simulator, because of exception: {0}", e.Message);
+                            }
+
                             return logResponse.ToXmlRpcResponse();
                         }
                         else
@@ -345,6 +361,38 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                 m_loginMutex.ReleaseMutex();
             }
 
+        }
+
+        public void SendAvatarUrlXmlRpc(string ip, int port, UUID id, string url)
+        {
+            Hashtable parms = new Hashtable();
+            parms.Add("AgentID", id.ToString());
+            parms.Add("AvatarURL", url);
+            XmlRpcResponse resp = Util.XmlRpcCommand("http://"+ip + ":" + port.ToString(), "realXtend_avatar_url", parms);
+            if (resp.Value is Hashtable)
+            {
+                Hashtable respData = (Hashtable)resp.Value;
+                if (respData.ContainsKey("SUCCESS"))
+                {
+                    bool success;
+                    if (bool.TryParse(respData["SUCCESS"].ToString(), out success))
+                    {
+                        if (success == true)
+                        {
+                            m_log.Info("[REXLOGIN]: Avatar url sent to simulator succesfully");
+                        }
+                    }
+                    else
+                    {
+                        string error = "Unknown";
+                        if (respData.ContainsKey("ERROR"))
+                        {
+                            error = respData["ERROR"].ToString();
+                        }
+                        m_log.ErrorFormat("[REXLOGIN]: Could not deliver avatar url to simulator because of error: {0}", error);
+                    }
+                }
+            }
         }
 
         protected virtual bool AllowLoginWithoutInventory()
