@@ -55,11 +55,17 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
         public XmlRpcResponse XmlRpcLoginMethodSwitch(XmlRpcRequest request, IPEndPoint remoteClient)
         {
             Hashtable requestData = (Hashtable)request.Params[0];
+            XmlRpcResponse response;
 
             bool RexXML = (requestData.Contains("account") && requestData.Contains("sessionhash"));
-            if (RexXML) { return this.m_RealXtendLogin.XmlRpcLoginMethod(request, remoteClient); }
-
-            XmlRpcResponse response = m_UserLoginService.XmlRpcLoginMethod(request, remoteClient);
+            if (RexXML)
+            { 
+                response = m_RealXtendLogin.XmlRpcLoginMethod(request, remoteClient);
+            }
+            else
+            {
+                response = m_UserLoginService.XmlRpcLoginMethod(request, remoteClient);
+            }
 
             if (requestData.Contains("version"))
             {

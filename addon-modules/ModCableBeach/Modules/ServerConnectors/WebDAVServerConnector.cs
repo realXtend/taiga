@@ -331,6 +331,10 @@ namespace ModCableBeach.ServerConnectors
 
                     InventoryFolderBase newFolder = new InventoryFolderBase(UUID.Random(), folderName, agentID, parentFolder.ID);
                     m_InventoryService.AddFolder(newFolder);
+                    if(!path.EndsWith("/")){ path = path + "/"; }
+                    IWebDAVResource davRes = WebDAVServerConnector.InventoryToDAV(path, parentFolder);
+                    davRes.CreationDate = DateTime.UtcNow;
+                    m_PropertyProvider.Save(davRes);
                     // test if exists?
                     // m_InventoryService.GetFolder needs InventoryFolderBase to return InventoryFolderBase?
 
@@ -421,7 +425,7 @@ namespace ModCableBeach.ServerConnectors
                         inventoryItem.AssetID = new UUID(assetMetadata.ID);
                         inventoryItem.AssetType = parentFolder.Type;
                         // TODO: conversion from long to int migth not be sufficient here
-                        inventoryItem.CreationDate = (int) DateTime.Now.Ticks; 
+                        //inventoryItem.CreationDate = (int) DateTime.Now.Ticks; // done automaticly
                         inventoryItem.CreatorId = agentID.ToString();
                         inventoryItem.Owner = agentID;
                         inventoryItem.CurrentPermissions = 2147483647;
@@ -439,7 +443,11 @@ namespace ModCableBeach.ServerConnectors
                         if (!existingAssetUpdate)
                         {
                             if (m_InventoryService.AddItem(inventoryItem))
+                            {
+                                VServerConnector.InventoryToDAV(path, inventoryItem);
+                                m_PropertyProvider.Save(davRes);
                                 return HttpStatusCode.Created;
+                            }
                         }
                         else
                         {
@@ -1108,8 +1116,6 @@ namespace ModCableBeach.ServerConnectors
 
         private HttpStatusCode MoveAndCopyWorker(string username, Uri uri, string destination, DepthHeader depth, bool overwrite, string[] ifHeaders, out Dictionary<string, HttpStatusCode> multiStatusValues, bool copy)
         {
-            destination = HttpUtility.UrlDecode(destination);
-
             CopyMoveItemHandler copyMoveItemHandler = null;
             CopyMoveFolderHandler copyMoveFolderHandler = null;
             if (copy)
@@ -1125,7 +1131,10 @@ namespace ModCableBeach.ServerConnectors
 
             multiStatusValues = null;
             string source = uri.AbsoluteUri;
+
             source = HttpUtility.UrlDecode(source);
+            destination = HttpUtility.UrlDecode(destination);
+
             string[] srcParts = source.ToString().Split('/');
             string[] dstParts = destination.Split('/');
             for (int i = 0; i < 3; i++)
@@ -1143,7 +1152,9 @@ namespace ModCableBeach.ServerConnectors
             string localPath = "";
             string path = uri.LocalPath;
             UUID agentID = AgentIDFromRequestPath("inventory", "/", path, ref localPath);
+
             string localDestionation = destination;
+
             // get local destination cut out the http://127.0.0.1:8003/inventory/00000000-0000-0000-0000-000000000000/ part
             string[] parts = localDestionation.Split(new char[] { '/' }, 6);
             localDestionation = parts[5];
