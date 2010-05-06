@@ -565,6 +565,16 @@ namespace OpenSim.Services.InventoryService
                 folder.Version = 1;
                 Folders.Add(folder.ID, folder);
 
+                // realXtend avatar to webdav
+                folder = new InventoryFolderBase();
+                folder.ParentID = rootFolder;
+                folder.Owner = user;
+                folder.ID = UUID.Random();
+                folder.Name = "Avatar";
+                folder.Type = (short)AssetType.Bodypart;
+                folder.Version = 1;
+                Folders.Add(folder.ID, folder);
+
                 folder = new InventoryFolderBase();
                 folder.ParentID = rootFolder;
                 folder.Owner = user;

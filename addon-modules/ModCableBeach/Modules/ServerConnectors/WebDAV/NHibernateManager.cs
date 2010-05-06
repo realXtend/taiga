@@ -36,8 +36,12 @@ namespace WebDAVSharp.NHibernateStorage
                 //exp.SetOutputFile("db_creation.sql");
                 //exp.Create(false, true);
 
+                // The above will sweep the db empty and creates the tables,
+                // this update checks that the tables are there but wont erase the data
+                SchemaUpdate update = new SchemaUpdate(configuration);
+                update.Execute(false, true);
+
                 sessionFactory = configuration.BuildSessionFactory();
-                
             }
             catch (MappingException mapE)
             {

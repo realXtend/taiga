@@ -50,7 +50,7 @@ namespace ModCableBeach.ServerConnectors
     {
         const string CONFIG_NAME = "WebDAVService";
         
-        private const string AVATAR_FOLDER_PATH = "/avatar/";
+        private const string AVATAR_FOLDER_PATH = "/Avatar/";
 
         private static readonly ILog m_log = LogManager.GetLogger("CableBeachWebDAVServer");
 
@@ -71,6 +71,7 @@ namespace ModCableBeach.ServerConnectors
         private WebDAVLockHandler     m_InventoryLockHandler;
         private WebDAVTimeOutHandler  m_InventoryLockTimeOutHandler;
 
+        private string m_ServiceUrl;
         private string m_OpenIDProvider;
         private string m_UserService;
         private int m_ServiceTimeout;
@@ -104,6 +105,7 @@ namespace ModCableBeach.ServerConnectors
             if (cablebeachConfig == null)
                 throw new Exception("No CableBeachService section in config file");
 
+            m_ServiceUrl = cablebeachConfig.GetString("ServiceUrl", String.Empty);
             m_OpenIDProvider = cablebeachConfig.GetString("OpenIDProvider", String.Empty);
             m_UserService = cablebeachConfig.GetString("UserService", String.Empty);
             m_ServiceTimeout = cablebeachConfig.GetInt("ServiceTimeOut", 10000);
@@ -210,6 +212,10 @@ namespace ModCableBeach.ServerConnectors
 
             // Register this server connector as a Cable Beach service
             CableBeachServerState.RegisterService(new Uri(CableBeachServices.FILESYSTEM), CreateCapabilitiesHandler);
+
+            // Inventory and avatar url handler
+            server.AddStreamHandler(new TrustedStreamHandler("GET", "/get_inventory_webdav_url", new WebDavInventoryUrlHandler(m_ServiceUrl))); 
+            server.AddStreamHandler(new TrustedStreamHandler("GET", "/get_avatar_webdav_url", new WebDavAvatarUrlHandler(m_ServiceUrl)));
 
             CableBeachServerState.Log.Info("[CABLE BEACH WEBDAV]: WebDAVServerConnector is running");
         }
@@ -381,7 +387,28 @@ namespace ModCableBeach.ServerConnectors
                     
                     sbyte type = CableBeachUtils.ContentTypeToSLAssetType(request.Headers["Content-type"]);
 
-                    AssetBase asset = new AssetBase(UUID.Random(), assetName, type);
+                    AssetBase asset = null;
+
+                    bool existingAssetUpdate = false;
+                    if (request.Headers["Overwrite"].Equals("T"))
+                    {
+                        InventoryItemBase invAssetItem = null;
+                        InventoryNodeBase invAssetNode = PathToInventory(agentID, localPath + assetName);
+                        if (invAssetNode is InventoryItemBase)
+                            invAssetItem = (InventoryItemBase)invAssetNode;
+                        if (invAssetItem != null)
+                        {
+                            asset = m_AssetService.Get(invAssetItem.AssetID.ToString());
+                            if (asset != null)
+                            {
+                                assetMetadata = m_AssetService.GetMetadata(asset.ID);
+                                existingAssetUpdate = true;
+                            }
+                        }
+                    }
+
+                    if (!existingAssetUpdate)
+                        asset = new AssetBase(UUID.Random(), assetName, type);
 
                     asset.Data = assetData;
                     asset.Metadata = assetMetadata;
@@ -409,12 +436,20 @@ namespace ModCableBeach.ServerConnectors
                         inventoryItem.Name = assetMetadata.Name;
                         inventoryItem.Folder = parentFolder.ID;
                         inventoryItem.SalePrice = 0;
-                        if (m_InventoryService.AddItem(inventoryItem))
-                            return HttpStatusCode.Created;
-                        //if (m_InventoryService.UpdateItem(
+                        if (!existingAssetUpdate)
+                        {
+                            if (m_InventoryService.AddItem(inventoryItem))
+                                return HttpStatusCode.Created;
+                        }
+                        else
+                        {
+                            if (m_InventoryService.UpdateItem(inventoryItem))
+                                return HttpStatusCode.Created;
+                        }
                     }
                     else 
-                    { // failed asset creation, dont create inventory item either sender, send error back
+                    { 
+                        // failed asset creation, dont create inventory item either sender, send error back
                         //return HttpStatusCode.PreconditionFailed & HttpStatusCode.InternalServerError;
                         return HttpStatusCode.InternalServerError;
                     }
@@ -675,8 +710,7 @@ namespace ModCableBeach.ServerConnectors
         public bool InventoryBasicAuthenticationHandler(string username, string password)
         {
             string uuid = GetUUID(username);
-            bool passwordOk = CheckPassword(uuid, password);
-            return passwordOk;
+            return CheckPassword(uuid, password);
         }
 
         public string GetUUID(string username)
@@ -1074,6 +1108,8 @@ namespace ModCableBeach.ServerConnectors
 
         private HttpStatusCode MoveAndCopyWorker(string username, Uri uri, string destination, DepthHeader depth, bool overwrite, string[] ifHeaders, out Dictionary<string, HttpStatusCode> multiStatusValues, bool copy)
         {
+            destination = HttpUtility.UrlDecode(destination);
+
             CopyMoveItemHandler copyMoveItemHandler = null;
             CopyMoveFolderHandler copyMoveFolderHandler = null;
             if (copy)
@@ -1089,6 +1125,7 @@ namespace ModCableBeach.ServerConnectors
 
             multiStatusValues = null;
             string source = uri.AbsoluteUri;
+            source = HttpUtility.UrlDecode(source);
             string[] srcParts = source.ToString().Split('/');
             string[] dstParts = destination.Split('/');
             for (int i = 0; i < 3; i++)
@@ -1344,5 +1381,75 @@ namespace ModCableBeach.ServerConnectors
             return (HttpStatusCode)207;
         }
 
+    }
+
+    public class WebDavInventoryUrlHandler : BaseStreamHandler
+    {
+        private string m_ServiceUrl;
+
+        public WebDavInventoryUrlHandler(string serviceUrl) :
+            base("GET", "/get_inventory_webdav_url")
+        {
+            m_ServiceUrl = serviceUrl;
+        }
+
+        public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            byte[] result = OpenMetaverse.Utils.EmptyBytes;
+            httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
+
+            UUID avatarUuid;
+            string avatar_address;
+            string avatarUuidString = httpRequest.Headers.Get("Avatar-UUID");
+
+            if (UUID.TryParse(avatarUuidString, out avatarUuid) && m_ServiceUrl != string.Empty)
+            {
+                string pathString;
+                if (m_ServiceUrl.EndsWith("/"))
+                    pathString = "inventory/" + avatarUuid.ToString();
+                else
+                    pathString = "/inventory/" + avatarUuid.ToString();
+                avatar_address = m_ServiceUrl + pathString;
+                httpResponse.AddHeader("Inventory-Webdav-Url", avatar_address);
+                httpResponse.StatusCode = (int)HttpStatusCode.OK;
+            }
+
+            return result;
+        }
+    }
+
+    public class WebDavAvatarUrlHandler : BaseStreamHandler
+    {
+        private string m_ServiceUrl;
+
+        public WebDavAvatarUrlHandler(string serviceUrl) :
+            base("GET", "/get_avatar_webdav_url")
+        {
+            m_ServiceUrl = serviceUrl;
+        }
+
+        public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            byte[] result = OpenMetaverse.Utils.EmptyBytes;
+            httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
+
+            UUID avatarUuid;
+            string avatar_address;
+            string avatarUuidString = httpRequest.Headers.Get("Avatar-UUID");
+
+            if (UUID.TryParse(avatarUuidString, out avatarUuid) && m_ServiceUrl != string.Empty)
+            {
+                string pathString;
+                if (m_ServiceUrl.EndsWith("/"))
+                    pathString = "avatar/" + avatarUuid.ToString() + "/Avatar.xml";
+                else
+                    pathString = "/avatar/" + avatarUuid.ToString() + "/Avatar.xml";
+                avatar_address = m_ServiceUrl + pathString;
+                httpResponse.AddHeader("Avatar-Webdav-Url", avatar_address);
+                httpResponse.StatusCode = (int)HttpStatusCode.OK;
+            }
+
+            return result;
+        }
     }
 }

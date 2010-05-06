@@ -28,6 +28,8 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
 {
     public class LoginSwitch : RexLoginModule
     {
+        protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         // RexLogin module declares m_log private so it cant be used here
         // protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         // private RexLoginModule m_RexLoginModule = new RexLoginModule();
@@ -67,6 +69,14 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                 }
             }
 
+            // Ask inv service the endpoint url for webdav inventory, return in login response
+            string inventoryWebdavUrl = GetUserWebdavBaseUrl(((Hashtable)response.Value));
+            if (inventoryWebdavUrl != string.Empty)
+                ((Hashtable)response.Value)["webdav_inventory"] = inventoryWebdavUrl;
+
+            // Send the webdav avatar appearance url to sim to broadcast to all viewers
+            BroadCastWebDavAvatarAppearanceUrl(((Hashtable)response.Value));
+            
             return response;
         }
 
@@ -121,7 +131,66 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
             }
         }
 
-    }
+        public string GetUserWebdavBaseUrl(Hashtable responseDataTable)
+        {
+            OpenMetaverse.UUID agentUuid;
+            if (OpenMetaverse.UUID.TryParse(responseDataTable["agent_id"].ToString(), out agentUuid))
+            {
+                WebRequest request;
+                WebResponse response;
+                string url = m_RealXtendLogin.m_UserConfig.GridServerURL.ToString() + "get_inventory_webdav_url";
 
+                request = WebRequest.Create(url);
+                request.Headers.Add("Avatar-UUID", agentUuid.ToString());
+
+                response = request.GetResponse();
+                string inventoryWebdavUrl = response.Headers.Get("Inventory-Webdav-Url");
+                if (inventoryWebdavUrl != string.Empty)
+                {
+                    m_log.Info("[LOGIN]: Agent inventory webdav url retrieved");
+                    return inventoryWebdavUrl;
+                }
+                else
+                {
+                    m_log.Info("[LOGIN]: Failed to retrieve agent inventory webdav url for " + agentUuid.ToString());
+                }
+            }
+            return string.Empty;
+        }
+
+        public void BroadCastWebDavAvatarAppearanceUrl(Hashtable responseDataTable)
+        {
+            OpenMetaverse.UUID agentUuid;
+            if (OpenMetaverse.UUID.TryParse(responseDataTable["agent_id"].ToString(), out agentUuid))
+            {
+                WebRequest request;
+                WebResponse response;
+                string url = m_RealXtendLogin.m_UserConfig.GridServerURL.ToString() + "get_avatar_webdav_url";
+
+                request = WebRequest.Create(url);
+                request.Headers.Add("Avatar-UUID", agentUuid.ToString());
+
+                response = request.GetResponse();
+                string appearanceWebdavUrl = response.Headers.Get("Avatar-Webdav-Url");
+                if (appearanceWebdavUrl != string.Empty)
+                {
+                    m_log.Info("[LOGIN]: Agent appearance webdav url retrieved");
+
+                    // If the responses http port is 0 we have to hack it from seed cap
+                    int sim_http_port = (int)responseDataTable["http_port"];
+                    if (sim_http_port == 0 && responseDataTable.Contains("seed_capability"))
+                    {
+                        Uri uri = new Uri(responseDataTable["seed_capability"].ToString());
+                        sim_http_port = uri.Port;
+                    }
+                    RexLogin.RealXtendLogin.SendAvatarUrlXmlRpc(responseDataTable["sim_ip"].ToString(), sim_http_port, agentUuid, appearanceWebdavUrl);
+                }
+                else
+                {
+                    m_log.Info("[LOGIN]: Failed to retrieve agent appearance webdav url for " + agentUuid.ToString());
+                }
+            }
+        }
+    }
 
 }

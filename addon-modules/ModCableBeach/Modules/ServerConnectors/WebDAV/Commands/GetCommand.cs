@@ -28,6 +28,11 @@ namespace ModCableBeach
             {
                 System.Net.HttpStatusCode status = server.GET(httpResponse, httpRequest.Url.AbsolutePath, username);
                 httpResponse.StatusCode = (int)status;
+                //byte [] data_buffer;
+                //data_buffer.
+                //int b = httpResponse.Body.ReadByte()
+                //int success = httpResponse.Body.Read(data_buffer, 0, (int)httpResponse.Body.Length);
+                //return data_buffer;
             }
             return OpenMetaverse.Utils.EmptyBytes;
         }

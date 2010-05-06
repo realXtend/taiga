@@ -318,7 +318,7 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
 
         }
 
-        public void SendAvatarUrlXmlRpc(string ip, int port, UUID agentId, string avatarUrl)
+        public static void SendAvatarUrlXmlRpc(string ip, int port, UUID agentId, string avatarUrl)
         {
             Hashtable parms = new Hashtable();
             parms.Add("AgentID", agentId.ToString());
