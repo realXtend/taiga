@@ -444,7 +444,7 @@ namespace ModCableBeach.ServerConnectors
                         {
                             if (m_InventoryService.AddItem(inventoryItem))
                             {
-                                VServerConnector.InventoryToDAV(path, inventoryItem);
+                                IWebDAVResource davRes = WebDAVServerConnector.InventoryToDAV(path, inventoryItem);
                                 m_PropertyProvider.Save(davRes);
                                 return HttpStatusCode.Created;
                             }
