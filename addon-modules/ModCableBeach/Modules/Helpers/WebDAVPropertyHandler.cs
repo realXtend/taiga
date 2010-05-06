@@ -445,8 +445,8 @@ namespace ModCableBeach.ServerConnectors
             IWebDAVResource item = m_PropertyProvider.Load(path);
             if (item == null) 
             {
-                string pathEnc = HttpUtility.UrlEncode(path);
-                item = m_PropertyProvider.Load(pathEnc);
+                string pathDec = HttpUtility.UrlDecode(path);
+                item = m_PropertyProvider.Load(pathDec);
                 if (item == null)
                 {
                     string pathRep = path.Replace(" ", "%20");

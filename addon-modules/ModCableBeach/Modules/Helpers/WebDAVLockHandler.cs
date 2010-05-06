@@ -9,6 +9,7 @@ using OpenSim.Framework.Servers.HttpServer;
 
 namespace ModCableBeach.ServerConnectors
 {
+
     /// <summary>
     /// Method callbacks that need to be proxied and checked for locks
     /// </summary>
@@ -21,6 +22,7 @@ namespace ModCableBeach.ServerConnectors
         HttpStatusCode PropPatchCallback(string username, Uri uri, string uriPath, string nspace, Dictionary<string, string> setProperties, List<string> removeProperties, out Dictionary<string, HttpStatusCode> multiStatus, string[] if_headers);
         WebDAVLockResponse LockHandler(WebDAVLockRequest request);
     }
+
 
     public class WebDAVLockHandler : ILockProxy, IRemoveLockInterface
     {
@@ -64,7 +66,9 @@ namespace ModCableBeach.ServerConnectors
             WebDAVLockResponse response = new WebDAVLockResponse();
             lock (this) // make sure only one thread is locking the resource
             {
-                if (!lockedResources.ContainsKey(request.Path))
+                string pathDec = HttpUtility.UrlDecode(request.Path);
+
+                if (!lockedResources.ContainsKey(pathDec))
                 {
                     // check the resource exists
                     if (!CheckIfExists(request))
@@ -79,7 +83,7 @@ namespace ModCableBeach.ServerConnectors
                         {
                             if (timeouts != null && timeouts.Length != 0)
                             {
-                                timeout = m_WebDAVTimeOutHandler.AddTimeOutLock(timeouts, request.Path);
+                                timeout = m_WebDAVTimeOutHandler.AddTimeOutLock(timeouts, pathDec);
                             }
                         }
                         //create locktoken
@@ -94,14 +98,15 @@ namespace ModCableBeach.ServerConnectors
                         response.OwnerValue = request.OwnerValue;
                         response.OwnerValues = request.OwnerValues;
                         response.HttpStatusCode = HttpStatusCode.Created;
-                        lockedResources.Add(request.Path, response);
+                        //lockedResources.Add(request.Path, response);
+                        lockedResources.Add(pathDec, response);
                     }
                 }
                 else
                 {
                     if (request.IfHeaders != null && request.IfHeaders.Length!=0) // it's refresh request
                     {
-                        if (CheckIfHeaders(request.IfHeaders, request.Path))
+                        if (CheckIfHeaders(request.IfHeaders, pathDec))
                         { // its valid request refresh lock:
                             if (!CheckIfExists(request))
                             {
@@ -116,7 +121,7 @@ namespace ModCableBeach.ServerConnectors
                                 {
                                     if (timeouts != null && timeouts.Length != 0)
                                     {
-                                        timeout = m_WebDAVTimeOutHandler.AddTimeOutLock(request.RequestedTimeout, request.Path);
+                                        timeout = m_WebDAVTimeOutHandler.AddTimeOutLock(request.RequestedTimeout, pathDec);
                                     }
                                 }
                                 //create locktoken
@@ -135,7 +140,7 @@ namespace ModCableBeach.ServerConnectors
                             }
                         }
                     }
-                    else if (lockedResources[request.Path].LockScope == LockScope.shared && request.LockScope == LockScope.shared)
+                    else if (lockedResources[pathDec].LockScope == LockScope.shared && request.LockScope == LockScope.shared)
                     {
                         //quite special case. no implementation yet
                         response.HttpStatusCode = HttpStatusCode.InternalServerError; //locked
@@ -152,14 +157,16 @@ namespace ModCableBeach.ServerConnectors
 
         public HttpStatusCode UnlockHandler(string path, string locktoken, string username)
         {
-            if (lockedResources.ContainsKey(path))
+            string decPath = HttpUtility.UrlDecode(path);
+
+            if (lockedResources.ContainsKey(decPath))
             {
-                WebDAVLockResponse response = lockedResources[path];
+                WebDAVLockResponse response = lockedResources[decPath];
                 if (response.LockToken == locktoken)
                 {
                     if (true) //username check should be here
                     {
-                        lockedResources.Remove(path);
+                        lockedResources.Remove(decPath);
                         return HttpStatusCode.NoContent;
                     }
                     else
@@ -506,20 +513,5 @@ namespace ModCableBeach.ServerConnectors
             return children;
         }
 
-        #region Folder lock methods
-        // For optimizing locking, the CheckParentPath heavier method
-        //private bool LockFolder(string path)
-        //{
-        //    return false;
-        //}
-        //private bool UnLockFolder(string path)
-        //{
-        //    return false;
-        //}
-        //private bool MoveFolderLocks(string path)
-        //{
-        //    return false;
-        //}
-        #endregion
     }
 }
