@@ -329,7 +329,8 @@ namespace ModCableBeach.ServerConnectors
             if (lockedNodes.Count != 0) {
                 multiStatus = new Dictionary<string, HttpStatusCode>();
                 this.FailingDepsToMultiStatus(lockedNodes, ref multiStatus);
-                return (HttpStatusCode)424; // failed dependency                                                            
+                //return (HttpStatusCode)424; // failed dependency
+                return (HttpStatusCode)207; // need to return this value to avoid internal server error
             }
             multiStatus = new Dictionary<string, HttpStatusCode>();
 
@@ -339,7 +340,7 @@ namespace ModCableBeach.ServerConnectors
                 if (CheckIfHeaders(if_headers, parentPath))
                 {
                     multiStatus.Add(parentPath, (HttpStatusCode)423);
-                    return (HttpStatusCode)424;
+                    return (HttpStatusCode)207;
                 }
             }
 
@@ -360,7 +361,7 @@ namespace ModCableBeach.ServerConnectors
                 else
                 {
                     multiStatus.Add(path, (HttpStatusCode)423); // empty status vals
-                    return (HttpStatusCode)424; //locked
+                    return (HttpStatusCode)207; // 242locked
                 }
             }
         }
