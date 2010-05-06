@@ -443,6 +443,16 @@ namespace ModCableBeach.ServerConnectors
         {
             // just delete items custom properties
             IWebDAVResource item = m_PropertyProvider.Load(path);
+            if (item == null) 
+            {
+                string pathEnc = HttpUtility.UrlEncode(path);
+                item = m_PropertyProvider.Load(pathEnc);
+                if (item == null)
+                {
+                    string pathRep = path.Replace(" ", "%20");
+                    item = m_PropertyProvider.Load(pathRep);
+                }
+            }
             m_PropertyProvider.Remove(item);
             return true;
         }
