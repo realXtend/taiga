@@ -1,0 +1,37 @@
+   <Project name="MumbleVoice" frameworkVersion="v3_5" path="addon-modules/MumbleVoice" type="Library">
+     <Configuration name="Debug">
+       <Options>
+         <OutputPath>../../bin/</OutputPath>
+       </Options>
+     </Configuration>
+     <Configuration name="Release">
+       <Options>
+         <OutputPath>../../../bin/</OutputPath>
+       </Options>
+     </Configuration>
+
+     <ReferencePath>../../bin/</ReferencePath>
+     <Reference name="System"/>
+     <Reference name="System.Web"/>
+     <Reference name="System.Xml"/>
+     <Reference name="DotNetOpenAuth"/>
+     <Reference name="log4net"/>
+     <Reference name="Mono.Addins"/>
+     <Reference name="Nini"/>
+     <Reference name="OpenSim.Data"/>
+     <Reference name="OpenSim.Framework"/>
+     <Reference name="OpenSim.Framework.Capabilities"/>
+     <Reference name="OpenSim.Framework.Communications"/>
+     <Reference name="OpenSim.Framework.Servers.HttpServer"/>
+     <Reference name="OpenSim.Region.Framework"/>
+     <Reference name="OpenSim.Server.Base"/>
+     <Reference name="OpenSim.Server.Handlers"/>
+     <Reference name="OpenSim.Services.Interfaces"/>
+     <Reference name="OpenMetaverseTypes"/>
+     <Reference name="OpenMetaverse.StructuredData"/>
+     <Reference name="OpenMetaverse.Http"/>
+     <Files>
+       <Match pattern="*.cs" recurse="true"/>
+       <!--<Match path="Resources" pattern="*.xml" buildAction="EmbeddedResource" recurse="true"/>-->
+     </Files>
+   </Project>
