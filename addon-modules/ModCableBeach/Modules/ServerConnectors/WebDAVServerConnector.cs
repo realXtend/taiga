@@ -145,8 +145,8 @@ namespace ModCableBeach.ServerConnectors
             //m_PropertyProvider = new DummyPropertyProvider();
 
             m_InventoryLockHandler = new WebDAVLockHandler(this, m_InventoryPropertyHandler, "inventory", "/");
-            m_AvatarPropertyHandler = new WebDAVPropertyHandler(this, m_InventoryService, m_AssetService, m_PropertyProvider, m_InventoryLockHandler, "avatar", AVATAR_FOLDER_PATH);
-            m_InventoryPropertyHandler = new WebDAVPropertyHandler(this, m_InventoryService, m_AssetService, m_PropertyProvider, m_InventoryLockHandler, "inventory", "/");
+            m_AvatarPropertyHandler = new WebDAVPropertyHandler(this, m_InventoryService, m_AssetService, m_PropertyProvider, m_InventoryLockHandler, "avatar", AVATAR_FOLDER_PATH, m_ServiceUrl);
+            m_InventoryPropertyHandler = new WebDAVPropertyHandler(this, m_InventoryService, m_AssetService, m_PropertyProvider, m_InventoryLockHandler, "inventory", "/", m_ServiceUrl);
             
 
             // Avatar WebDAV service endpoint
@@ -1200,8 +1200,13 @@ namespace ModCableBeach.ServerConnectors
             InventoryNodeBase destinationParentNode = null;
             if (!destinationNodeExists)
             {
-                if (localDestionation.EndsWith("/")) localDestionation = localDestionation.Substring(0, localDestionation.Length - 1);
-                string destinationParentPath = localDestionation.Substring(0, localDestionation.LastIndexOf('/'));
+                if (localDestionation.EndsWith("/")) 
+                    localDestionation = localDestionation.Substring(0, localDestionation.Length - 1);
+                string destinationParentPath;
+                if (localDestionation.Contains("/"))
+                    destinationParentPath = localDestionation.Substring(0, localDestionation.LastIndexOf('/'));
+                else
+                    destinationParentPath = "/";
                 destinationParentNode = PathToInventory(agentID, destinationParentPath);
                 if (destinationParentNode != null) 
                 {

@@ -75,19 +75,19 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                 }
             }
 
-            // Ask inv service the endpoint url for webdav inventory, return in login response
+            
             Hashtable responseMap = ((Hashtable)response.Value);
             if (responseMap.ContainsKey("agent_id") &&
                 responseMap.ContainsKey("http_port") &&
                 responseMap.ContainsKey("sim_ip") &&
                 responseMap.ContainsKey("seed_capability"))
             {
-                string inventoryWebdavUrl = GetUserWebdavBaseUrl(((Hashtable)response.Value));
+                // Ask inv service the endpoint url for webdav inventory, return in login response
+                string inventoryWebdavUrl = GetUserWebdavBaseUrl(responseMap);
                 if (inventoryWebdavUrl != string.Empty)
                     ((Hashtable)response.Value)["webdav_inventory"] = inventoryWebdavUrl;
-
                 // Send the webdav avatar appearance url to sim to broadcast to all viewers
-                BroadCastWebDavAvatarAppearanceUrl(((Hashtable)response.Value));
+                BroadCastWebDavAvatarAppearanceUrl(responseMap);
             }
             
             return response;

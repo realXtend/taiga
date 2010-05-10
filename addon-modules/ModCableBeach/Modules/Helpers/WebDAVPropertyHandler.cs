@@ -41,6 +41,7 @@ namespace ModCableBeach.ServerConnectors
                                                      // like http://localhost:8003/inventory/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/
         private string                  m_InitialLocalPath; // - the path in the inventory that webdav operations operate 
                                                             // for example "/avatar/" or "/"
+        private string                  m_ServiceUrl; // Base url for this robust server
 
         public WebDAVPropertyHandler(WebDAVServerConnector connector,
                                      IInventoryService inventory_service,
@@ -48,7 +49,8 @@ namespace ModCableBeach.ServerConnectors
                                      IPropertyProvider property_provider,
                                      WebDAVLockHandler lock_handler,
                                      string domain,
-                                     string local_initial_path) 
+                                     string local_initial_path,
+                                     string service_url) 
         {
             m_WebDAVServerConnector     = connector;
             m_InventoryService          = inventory_service;
@@ -57,6 +59,7 @@ namespace ModCableBeach.ServerConnectors
             m_SubDomain                 = domain;
             m_InitialLocalPath          = local_initial_path;
             m_LockHandler               = lock_handler;
+            m_ServiceUrl                = service_url;
         }
 
         public IList<IWebDAVResource> PropFindHandler(string username, string path, DepthHeader depth)
@@ -229,6 +232,7 @@ namespace ModCableBeach.ServerConnectors
             else
                 resourcePath = path + "/" + name;
 
+            InventoryItemBase item;
             if (node is InventoryFolderBase)
                 resourcePath = resourcePath + "/";
 
@@ -238,6 +242,14 @@ namespace ModCableBeach.ServerConnectors
                 resource = WebDAVServerConnector.InventoryToDAV(resourcePath, node);
                 m_PropertyProvider.Save(resource);
             }
+            
+            if (node is InventoryItemBase)
+            {
+                UUID assetID = ((InventoryItemBase)node).AssetID;
+                WebDAVProperty assetRefProperty = new WebDAVProperty("assetreferenceurl", "", m_ServiceUrl + "/assets/" + assetID.ToString() + "/data");
+                resource.AddProperty(assetRefProperty);
+            }
+
             if (resource != null)
                 dav_entries.Add(resource);
             return resourcePath;
@@ -473,8 +485,13 @@ namespace ModCableBeach.ServerConnectors
             custom_properties.Remove(rootOrigin);
             string rootDestiny = "/" + m_SubDomain + "/" + agent_id.ToString() + "/" + m_WebDAVServerConnector.NodeToPath(agent_id, source_node);
             IWebDAVResource folder = m_PropertyProvider.Load(rootOrigin);
-            m_PropertyProvider.Remove(folder);
-            folder.Path = rootDestiny;
+            if (folder != null)
+            {
+                m_PropertyProvider.Remove(folder);
+                folder.Path = rootDestiny;
+            }
+            else
+                folder = new WebDAVFolder(rootDestiny, Utils.Epoch, Utils.Epoch, DateTime.UtcNow, false);
             m_PropertyProvider.Save(folder);
             foreach (string path in custom_properties)
             {
