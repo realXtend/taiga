@@ -6,6 +6,8 @@ using OpenSim.Framework;
 using OpenSim.Framework.Servers.HttpServer;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
+using OpenMetaverse;
+using System.Collections.Generic;
 
 namespace MumbleVoice
 {
@@ -24,9 +26,11 @@ namespace MumbleVoice
         private string m_server_address = null;
         private string m_server_password = "";
         private string m_server_version = "";
-        private string m_channel = "";
+        private string m_default_channel = "Root";
         private string m_context = "Mumbe voice system";
         private static string SERVICE_REST_URL = "/mumble_server_info";
+
+        private List<Scene> m_scenes = new List<Scene>();
 
         public MumbleVoiceModule()
         {
@@ -36,38 +40,48 @@ namespace MumbleVoice
         {
             ReadConfig(source);
 
-            scene.EventManager.OnMakeChildAgent += OnMakeChildAgent;
-            scene.EventManager.OnMakeRootAgent += OnMakeRootAgent;
+            m_scenes.Add(scene);
+
+            //scene.EventManager.OnMakeChildAgent += OnMakeChildAgent;
+            //scene.EventManager.OnMakeRootAgent += OnMakeRootAgent;
 
             m_Log.Info("[MUMBLE VOIP]: MumbleVoiceModule initialized");
 	    }
 
         private void ReadConfig(IConfigSource source)
         {
-            if (source != null)
+            try
             {
-                try
+                if (source.Configs["mumblevoice"] != null)
                 {
                     m_server_address = source.Configs["mumblevoice"].GetString("server_address", "");
                     m_server_password = source.Configs["mumblevoice"].GetString("server_password", "");
                     m_server_version = source.Configs["mumblevoice"].GetString("server_version", "");
-                    m_channel = source.Configs["mumblevoice"].GetString("channel", "Root");
-                }
-                catch (Exception)
-                {
-                    m_Log.Error("[MUMBLE VOIP]: Cannot find server configuration");
+                    if (source.Configs["mumblevoice"].Contains("channel"))
+                        m_default_channel = source.Configs["mumblevoice"].GetString("channel", "Root");
+                    else
+                        m_default_channel = null;
                 }
             }
-            else
+            catch (Exception)
             {
                 m_Log.Error("[MUMBLE VOIP]: Cannot find server configuration");
             }
         }
 
         public void PostInitialise()
-	    {
-            MainServer.Instance.AddStreamHandler(new RestStreamHandler("GET", SERVICE_REST_URL, RestGetMumbleServerInfo));
-	    }
+        {
+            foreach (Scene s in m_scenes)
+            {
+                s.EventManager.OnRegisterCaps += new EventManager.RegisterCapsEvent(EventManager_OnRegisterCaps);
+            }
+        }
+
+        void EventManager_OnRegisterCaps(OpenMetaverse.UUID agentID, OpenSim.Framework.Capabilities.Caps caps)
+        {
+            UUID capID = UUID.Random();
+            caps.RegisterHandler("mumble_server_info", new RestStreamHandler("GET", "/CAPS/" + capID, RestGetMumbleServerInfo));
+        }
 
         /// <summary>
         /// Returns information about a mumble server via a REST Request
@@ -99,34 +113,76 @@ namespace MumbleVoice
                 m_Log.Warn(message);
                 return "avatar_uuid header is missing";
             }
+
             string avatar_uuid = httpRequest.Headers.GetValues("avatar_uuid")[0];
-
-            httpResponse.AddHeader("Mumble-Server", m_server_address);
-            httpResponse.AddHeader("Mumble-Version", m_server_version);
-            httpResponse.AddHeader("Mumble-Channel", m_channel);
-            httpResponse.AddHeader("Mumble-User", avatar_uuid);
-            httpResponse.AddHeader("Mumble-Password", m_server_password);
-            httpResponse.AddHeader("Mumble-Avatar-Id", avatar_uuid);
-            httpResponse.AddHeader("Mumble-Context-Id", m_context);
-
             string responseBody = String.Empty;
-            responseBody += "Mumble-Server: " + m_server_address + "\n";
-            responseBody += "Mumble-Version: " + m_server_version + "\n";
-            responseBody += "Mumble-Channel: " + m_channel + "\n";
-            responseBody += "Mumble-User: " + avatar_uuid + "\n";
-            responseBody += "Mumble-Password: " + m_server_password + "\n";
-            responseBody += "Mumble-Avatar-Id: " + avatar_uuid + "\n";
-            responseBody += "Mumble-Context-Id: " + m_context + "\n";
+            UUID avatarId;
+            if (UUID.TryParse(avatar_uuid, out avatarId))
+            {
+                string channel;
+                string regionId = GetRegionUuid(avatarId);
+                if (regionId == null)
+                {
+                    //user has not logged in?
+                    regionId = "Root";
+                }
 
-            string log_message = "[MUMBLE VOIP]: Server info request handled for " + httpRequest.RemoteIPEndPoint.Address + "";
-            m_Log.Info(log_message);
+                if (m_default_channel == null)
+                    channel = regionId;
+                else
+                    channel = m_default_channel;
+
+                httpResponse.AddHeader("Mumble-Server", m_server_address);
+                httpResponse.AddHeader("Mumble-Version", m_server_version);
+                httpResponse.AddHeader("Mumble-Channel", channel);
+                httpResponse.AddHeader("Mumble-User", avatar_uuid);
+                httpResponse.AddHeader("Mumble-Password", m_server_password);
+                httpResponse.AddHeader("Mumble-Avatar-Id", avatar_uuid);
+                httpResponse.AddHeader("Mumble-Context-Id", m_context);
+
+                responseBody += "Mumble-Server: " + m_server_address + "\n";
+                responseBody += "Mumble-Version: " + m_server_version + "\n";
+                responseBody += "Mumble-Channel: " + channel + "\n";
+                responseBody += "Mumble-User: " + avatar_uuid + "\n";
+                responseBody += "Mumble-Password: " + m_server_password + "\n";
+                responseBody += "Mumble-Avatar-Id: " + avatar_uuid + "\n";
+                responseBody += "Mumble-Context-Id: " + m_context + "\n";
+
+                string log_message = "[MUMBLE VOIP]: Server info request handled for " + httpRequest.RemoteIPEndPoint.Address + "";
+                m_Log.Info(log_message);
+            }
+            else
+            {
+                httpResponse.StatusCode = 400;
+                httpResponse.StatusDescription = "Bad Request";
+
+                m_Log.Warn("[MUMBLE VOIP]: Could not parse avatar uuid from request");
+                return "could not parse avatar_uuid header";
+            }
 
             return responseBody;
         }
-    	
+
+        string GetRegionUuid(UUID userId)
+        {
+            foreach (Scene s in m_scenes)
+            {
+                ScenePresence avatar = s.GetScenePresence(userId);
+                if (avatar != null && !(avatar.IsChildAgent))
+                {
+                    return s.RegionInfo.RegionID.ToString();
+                }
+            }
+
+            return null;
+        }
+
         public void Close()
 	    {
-    	
+            foreach (Scene s in m_scenes)
+            {
+                s.EventManager.OnRegisterCaps -= new EventManager.RegisterCapsEvent(EventManager_OnRegisterCaps);
+            }
 	    }
     	
         public string Name
@@ -136,23 +192,7 @@ namespace MumbleVoice
         
         public bool IsSharedModule
         {
-            get { return false; }
-        }
-
-        public void AddRegion(Scene scene)
-        {
-        }
-
-        public void RemoveRegion(Scene scene)
-        {
-        }
-
-        public void RegionLoaded(Scene scene)
-        {
-        }
-
-        protected void InitializeScene(IScene scene)
-        {
+            get { return true; }
         }
 
         private void OnMakeRootAgent(ScenePresence presence)
@@ -163,10 +203,6 @@ namespace MumbleVoice
         private void OnMakeChildAgent(ScenePresence presence)
         {
             m_Log.Info("[MUMBLE VOIP]: new child agent.");
-        }
-
-        protected void HandleNewClient(IClientAPI client)
-        {
         }
     }
 }
