@@ -30,7 +30,7 @@ using OpenSim.Framework;
 
 namespace OpenSim.Region.Framework.Interfaces
 {
-    public interface IDialogModule
+    public interface    IDialogModule
     {
         /// <summary>
         /// Send a non-modal alert message to a particular user.  This can disappear from the user's view after a
@@ -131,5 +131,10 @@ namespace OpenSim.Region.Framework.Interfaces
         /// <param name="fromAvatarName">The name of the user doing the sending</param>
         /// <param name="message">The message being sent to the user</param>
         void SendNotificationToUsersInEstate(UUID fromAvatarID, string fromAvatarName, string message);
+
+        /// <summary>
+        /// Send a textbox entry for the client to respond to
+        /// </summary>
+        void SendTextBoxToUser(UUID avatarid, string message, int chatChannel, string name, UUID objectid, UUID ownerid);
     }
 }

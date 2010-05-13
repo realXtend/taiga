@@ -142,6 +142,30 @@ namespace OpenSim.Region.CoreModules.Avatar.Dialog
             if (sp != null)
                 sp.ControllingClient.SendLoadURL(objectName, objectID, ownerID, groupOwned, message, url);
         }
+
+        public void SendTextBoxToUser(UUID avatarid, string message, int chatChannel, string name, UUID objectid, UUID ownerid)
+        {
+            CachedUserInfo info = m_scene.CommsManager.UserProfileCacheService.GetUserDetails(ownerid);
+            string ownerFirstName, ownerLastName;
+            if (info != null)
+            {
+                ownerFirstName = info.UserProfile.FirstName;
+                ownerLastName = info.UserProfile.SurName;
+            }
+            else
+            {
+                ownerFirstName = "(unknown";
+                ownerLastName = "user)";
+            }
+
+
+            ScenePresence sp = m_scene.GetScenePresence(avatarid);
+
+            if (sp != null)
+            {
+                sp.ControllingClient.SendTextBoxRequest(message, chatChannel, name, ownerFirstName, ownerLastName, objectid);
+            }
+        }
         
         public void SendNotificationToUsersInEstate(
             UUID fromAvatarID, string fromAvatarName, string message)

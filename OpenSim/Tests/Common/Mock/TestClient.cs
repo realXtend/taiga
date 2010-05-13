@@ -1205,5 +1205,9 @@ namespace OpenSim.Tests.Common.Mock
         public void SendGroupActiveProposals(UUID groupID, UUID transactionID, GroupActiveProposals[] Proposals)
         {
         }
+
+        public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
+        {
+        }
     }
 }

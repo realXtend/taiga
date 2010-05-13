@@ -1669,5 +1669,9 @@ namespace OpenSim.Region.OptionalModules.Agent.InternetRelayClientView.Server
         public void SendGroupActiveProposals(UUID groupID, UUID transactionID, GroupActiveProposals[] Proposals)
         {
         }
+
+        public void SendTextBoxRequest(string message, int chatChannel, string objectname, string ownerFirstName, string ownerLastName, UUID objectId)
+        {
+        }
     }
 }
