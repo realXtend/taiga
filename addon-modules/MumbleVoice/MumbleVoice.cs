@@ -29,6 +29,7 @@ namespace MumbleVoice
         private string m_default_channel = "Root";
         private string m_context = "Mumbe voice system";
         private static string SERVICE_REST_URL = "/mumble_server_info";
+        private bool m_enabled = false;
 
         private List<Scene> m_scenes = new List<Scene>();
 
@@ -54,6 +55,7 @@ namespace MumbleVoice
             {
                 if (source.Configs["mumblevoice"] != null)
                 {
+                    m_enabled = source.Configs["mumblevoice"].GetBoolean("enabled", false);
                     m_server_address = source.Configs["mumblevoice"].GetString("server_address", "");
                     m_server_password = source.Configs["mumblevoice"].GetString("server_password", "");
                     m_server_version = source.Configs["mumblevoice"].GetString("server_version", "");
@@ -71,9 +73,12 @@ namespace MumbleVoice
 
         public void PostInitialise()
         {
-            foreach (Scene s in m_scenes)
+            if (m_enabled)
             {
-                s.EventManager.OnRegisterCaps += new EventManager.RegisterCapsEvent(EventManager_OnRegisterCaps);
+                foreach (Scene s in m_scenes)
+                {
+                    s.EventManager.OnRegisterCaps += new EventManager.RegisterCapsEvent(EventManager_OnRegisterCaps);
+                }
             }
         }
 
@@ -179,9 +184,12 @@ namespace MumbleVoice
 
         public void Close()
 	    {
-            foreach (Scene s in m_scenes)
+            if (m_enabled)
             {
-                s.EventManager.OnRegisterCaps -= new EventManager.RegisterCapsEvent(EventManager_OnRegisterCaps);
+                foreach (Scene s in m_scenes)
+                {
+                    s.EventManager.OnRegisterCaps -= new EventManager.RegisterCapsEvent(EventManager_OnRegisterCaps);
+                }
             }
 	    }
     	
