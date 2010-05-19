@@ -65,6 +65,20 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
             else
             {
                 response = m_UserLoginService.XmlRpcLoginMethod(request, remoteClient);
+
+                Hashtable responseMap = ((Hashtable)response.Value);
+                if (responseMap.ContainsKey("agent_id") &&
+                    responseMap.ContainsKey("http_port") &&
+                    responseMap.ContainsKey("sim_ip") &&
+                    responseMap.ContainsKey("seed_capability"))
+                {
+                    // Ask inv service the endpoint url for webdav inventory, return in login response
+                    string inventoryWebdavUrl = GetUserWebdavBaseUrl(responseMap);
+                    if (inventoryWebdavUrl != string.Empty)
+                        ((Hashtable)response.Value)["webdav_inventory"] = inventoryWebdavUrl;
+                    // Send the webdav avatar appearance url to sim to broadcast to all viewers
+                    BroadCastWebDavAvatarAppearanceUrl(responseMap);
+                }
             }
 
             if (requestData.Contains("version"))
@@ -73,21 +87,6 @@ namespace OpenSim.Grid.UserServer.Modules.RexLogin
                 {
                     ((Hashtable)response.Value)["rex"] = "running rex mode";
                 }
-            }
-
-            
-            Hashtable responseMap = ((Hashtable)response.Value);
-            if (responseMap.ContainsKey("agent_id") &&
-                responseMap.ContainsKey("http_port") &&
-                responseMap.ContainsKey("sim_ip") &&
-                responseMap.ContainsKey("seed_capability"))
-            {
-                // Ask inv service the endpoint url for webdav inventory, return in login response
-                string inventoryWebdavUrl = GetUserWebdavBaseUrl(responseMap);
-                if (inventoryWebdavUrl != string.Empty)
-                    ((Hashtable)response.Value)["webdav_inventory"] = inventoryWebdavUrl;
-                // Send the webdav avatar appearance url to sim to broadcast to all viewers
-                BroadCastWebDavAvatarAppearanceUrl(responseMap);
             }
             
             return response;
