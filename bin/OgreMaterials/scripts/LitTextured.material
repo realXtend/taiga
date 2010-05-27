@@ -1,0 +1,38 @@
+// Renders primitives with a single lit texture, includes shadowing
+material LitTextured
+{
+	technique
+	{
+		pass
+		{
+			vertex_program_ref rex/DiffShadowVP
+			{
+			}
+			fragment_program_ref rex/DiffShadowFP
+			{
+			}
+
+			texture_unit baseMap
+			{
+				texture TextureMissing.png
+			}
+
+			texture_unit shadowMap
+			{
+				content_type shadow
+			}
+		}
+	}
+
+	// fallback
+	technique
+	{
+	    pass
+	    {
+	        texture_unit baseMap
+	        {
+	            texture TextureMissing.png
+	        }
+        }
+	}
+}

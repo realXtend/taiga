@@ -1,0 +1,35 @@
+// Renders primitives with a single unlit texture
+material UnlitTextured
+{
+	technique
+	{
+		pass
+		{
+			vertex_program_ref UnlitTexturedVP
+			{
+			}
+			fragment_program_ref UnlitTexturedFP
+			{
+			}
+			texture_unit baseMap
+			{
+				texture TextureMissing.png
+			}
+		} 
+	}
+	
+	// fallback
+	technique
+	{
+	    pass
+	    {
+	        lighting off
+
+	        texture_unit baseMap
+	        {
+	            texture TextureMissing.png
+	        }
+        }
+	}
+}
+ 
