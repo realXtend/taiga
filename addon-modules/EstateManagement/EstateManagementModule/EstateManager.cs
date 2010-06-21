@@ -3,12 +3,40 @@ using System.Reflection;
 using System.Collections.Generic;
 using log4net;
 using System.Text;
+using System.IO;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
 using OpenMetaverse;
+using OpenSim.Framework.Servers;
+using OpenSim.Framework.Servers.HttpServer;
+//using Caps = OpenSim.Framework.Capabilities.Caps;
+using OpenSim.Framework.Capabilities;
+
 
 namespace EstateManagementModule
 {
+    #region HttpRequest handler code
+
+    public delegate byte[] HttpRequestCallback(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse);
+
+    public class StreamHandler : BaseStreamHandler
+    {
+        private HttpRequestCallback m_callback;
+
+        public override string ContentType { get { return null; } }
+
+        public StreamHandler(string httpMethod, string path, HttpRequestCallback callback) :
+            base(httpMethod, path)
+        {
+            m_callback = callback;
+        }
+
+        public override byte[] Handle(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            return m_callback(path, request, httpRequest, httpResponse);
+        }
+    }
+    #endregion
 
     public class EstateManagerBase
     {
@@ -30,7 +58,6 @@ namespace EstateManagementModule
         private IEstateModule m_EstateModule; // TODO needed ??
 
 
-
         #region IRegionModule Members
 
         public void Initialise(OpenSim.Region.Framework.Scenes.Scene scene, Nini.Config.IConfigSource source)
@@ -46,9 +73,81 @@ namespace EstateManagementModule
             m_scene.AddCommand(this, "EstateShowAccess", "EstateShowAccess", "Show estate access list", HandleShowEstateAccessList);
             m_scene.AddCommand(this, "EstateShowBan", "EstateShowBan", "Show estate ban list", HandleShowEstateBanList);
             m_scene.AddCommand(this, "EstateShowCurrent", "EstateShowCurrent", "Show estate id of currently selected region", HandleShowCurrentEstateID);
-
             m_scene.RegisterModuleInterface<IEstateRegionManager>(this);
+
+            AddEstateRegionSettingsModificationCap(scene, this);
         }
+
+        private void AddEstateRegionSettingsModificationCap(Scene scene, EstateManager estateManager)
+        {
+            try
+            {
+                scene.EventManager.OnRegisterCaps += this.RegisterCaps;
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("[ESTATEMANAGER]: Error starting estate manager: {0}, {1}", e.Message, e.StackTrace);
+            }
+        }
+
+        public void RegisterCaps(UUID agentID, OpenSim.Framework.Capabilities.Caps caps)
+        {
+            if (CheckRights(agentID))
+            {
+                UUID capID = UUID.Random();
+                m_log.InfoFormat("[ESTATEMANAGER]: Creating capability: /CAPS/{0}", capID);
+                caps.RegisterHandler("EstateRegionSettingsModification", new StreamHandler("POST", "/CAPS/" + capID, ProcessEstateRegionSettingsModificationRequest));
+            }
+        }
+
+        private byte[] ProcessEstateRegionSettingsModificationRequest(string path, Stream request, OSHttpRequest httpRequest, OSHttpResponse httpResponse)
+        {
+            byte[] data = httpRequest.GetBody();
+            m_log.Info("[ESTATEMANAGER]: Processing EstateRegionSettingsModification packet");
+
+            string datastring = System.Text.ASCIIEncoding.ASCII.GetString(data);
+            m_log.Debug("[ESTATEMANAGER]: " + datastring);
+            string respstring = "";
+
+            if (datastring != "")
+            {
+                string[] valuePairs = datastring.Split('&');
+                string method = valuePairs[0].Split('=')[0];
+                if (method == "PublicAccess")
+                {
+                    try
+                    {
+                        Boolean publicAccess = Convert.ToBoolean(valuePairs[0].Split('=')[1]);
+                        m_scene.RegionInfo.EstateSettings.PublicAccess = publicAccess;
+                        m_scene.RegionInfo.EstateSettings.Save();
+                        m_log.Info("[ESTATEMANAGER]: PublicAccess set to: " + publicAccess.ToString());
+                        respstring = "Success:PublicAccess=" + publicAccess.ToString();
+                    }
+                    catch (Exception e)
+                    {
+                        m_log.Warn("[ESTATEMANAGER]: Failed to set PublicAccess: " + e.Message);
+                        respstring = "Failure:Failed to set PublicAccess: " + e.Message;
+                    }                    
+                }
+            }
+            
+            System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
+            return encoding.GetBytes(respstring);
+        }
+
+        private bool CheckRights(UUID agentID)
+        {
+            if (agentID == m_scene.RegionInfo.EstateSettings.EstateOwner)
+                return true;
+            UUID[] managers = m_scene.RegionInfo.EstateSettings.EstateManagers;
+            foreach (UUID id in managers)
+            {
+                if (id == agentID)
+                    return true;
+            }
+            return false;
+        }
+
 
         public void PostInitialise()
         {
