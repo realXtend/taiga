@@ -56,7 +56,7 @@ namespace EstateManagementModule
     {
         private Scene m_scene;
         private IEstateModule m_EstateModule; // TODO needed ??
-
+        private EstateRegionHandler m_EstateRegionHandler = null;
 
         #region IRegionModule Members
 
@@ -76,6 +76,10 @@ namespace EstateManagementModule
             m_scene.RegisterModuleInterface<IEstateRegionManager>(this);
 
             AddEstateRegionSettingsModificationCap(scene, this);
+
+            m_EstateRegionHandler = new EstateRegionHandler(scene.RegionInfo, source);
+            //scene.RegionInfo.EstateSettings
+            //scene.SceneGridService.Re
         }
 
         private void AddEstateRegionSettingsModificationCap(Scene scene, EstateManager estateManager)
@@ -113,6 +117,7 @@ namespace EstateManagementModule
             {
                 string[] valuePairs = datastring.Split('&');
                 string method = valuePairs[0].Split('=')[0];
+                
                 if (method == "PublicAccess")
                 {
                     try
@@ -129,8 +134,43 @@ namespace EstateManagementModule
                         respstring = "Failure:Failed to set PublicAccess: " + e.Message;
                     }                    
                 }
+                
+                if (method == "GetEstates")
+                {
+                    try
+                    {
+                        string resp = "";
+                        Dictionary<int,string> estates = m_EstateRegionHandler.GetEstates();
+                        foreach (KeyValuePair<int, string> kvp in estates)
+                        {
+                            resp += kvp.Key.ToString() + "=" + kvp.Value + "\n";
+                        }
+                        if (resp.Length > 1) { resp = resp.Substring(0, resp.Length - 1); } // remove last \n
+
+                        KeyValuePair<uint, string> current = m_EstateRegionHandler.GetCurrentEstate();
+
+                        respstring = "Success:\ncurrent estate:" + current.Key + "=" + current.Value + "\n  estates:\n" + resp;
+                    }
+                    catch (Exception e)
+                    {
+                        respstring = "Failure:Failed to fetch estates: " + e.Message;
+                    }                        
+                }
+                
+                if (method == "SetRegionEstate")
+                {
+                    try
+                    {
+                        int estateID = int.Parse(valuePairs[0].Split('=')[1]);
+                        m_EstateRegionHandler.SetRegionsEstate(estateID);
+                        respstring = "Success: Set regionId to : " + estateID.ToString();
+                    }
+                    catch (Exception e)
+                    {
+                        respstring = "Failure:Failed to set regionId: " + e.Message;
+                    }                    
+                }
             }
-            
             System.Text.ASCIIEncoding encoding = new System.Text.ASCIIEncoding();
             return encoding.GetBytes(respstring);
         }

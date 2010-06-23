@@ -28,3 +28,4 @@
        <!--<Match path="Resources" pattern="*.xml" buildAction="EmbeddedResource" recurse="true"/>-->
      </Files>
    </Project>
+

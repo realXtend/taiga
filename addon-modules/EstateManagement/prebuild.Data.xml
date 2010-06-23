@@ -1,0 +1,34 @@
+   
+   <Project name="EstateManagement.Data.MySQL" frameworkVersion="v3_5" path="./addon-modules/EstateManagement/Data/MySQL" type="Library">
+     <Configuration name="Debug">
+       <Options>
+         <OutputPath>../../../../bin/</OutputPath>
+       </Options>
+     </Configuration>
+     <Configuration name="Release">
+       <Options>
+         <OutputPath>../../../../bin/</OutputPath>
+       </Options>
+     </Configuration>
+
+     <ReferencePath>../../../../bin/</ReferencePath>
+     <Reference name="System"/>
+     <Reference name="System.Core"/>
+     <Reference name="System.Data"/>
+     <Reference name="System.Data.DataSetExtensions"/>
+     <Reference name="EstateManagementModule"/>
+     <Reference name="log4net"/>
+     <Reference name="MySql.Data"/>
+     <Reference name="OpenMetaverseTypes"/>
+     <!--<Reference name="Nini"/>-->
+     <Reference name="OpenSim.Framework"/>
+     <!--<Reference name="OpenSim.Framework.Capabilities"/>-->
+     <!--<Reference name="OpenSim.Framework.Console"/>-->
+     <!--<Reference name="OpenSim.Framework.Servers.HttpServer"/>-->
+     <!--<Reference name="OpenSim.Region.Framework"/>-->
+
+     <Files>
+       <Match pattern="*.cs" recurse="true"/>
+       <!--<Match path="Resources" pattern="*.xml" buildAction="EmbeddedResource" recurse="true"/>-->
+     </Files>
+   </Project>
