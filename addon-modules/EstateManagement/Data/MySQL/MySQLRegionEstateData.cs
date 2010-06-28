@@ -15,7 +15,7 @@ namespace EstateManagement.Data.MySQL
     /// Class for modifying regions estate, with mysql databases
     /// wery much untested code
     /// </summary>
-    public class MySQLRegionEstateData : EstateManagementModule.IRegionEstateModification
+    public class MySQLRegionEstateData : IRegionEstateModification
     {
         string m_connectionString;
         private static readonly ILog m_log =
@@ -30,11 +30,11 @@ namespace EstateManagement.Data.MySQL
 
             try
             {
-                m_log.Info("[REGION DB]: MySql - connecting: " + Util.GetDisplayConnectionString(m_connectionString));
+                m_log.Info("[MySQLRegionEstateData]: MySql - connecting: " + Util.GetDisplayConnectionString(m_connectionString));
             }
             catch (Exception e)
             {
-                m_log.Debug("Exception: password not found in connection string\n" + e.ToString());
+                m_log.Error("[MySQLRegionEstateData]: Exception: failed to connect database\n" + e.ToString());
             }
 
         }
@@ -59,7 +59,7 @@ namespace EstateManagement.Data.MySQL
                 }
                 catch (Exception e)
                 {
-                    m_log.ErrorFormat("[ESTATEMANAGEMENTMODULE]: MySQL failure modifying regions {0} estate to {1}. Error: {2}",
+                    m_log.ErrorFormat("[MySQLRegionEstateData]: MySQL failure modifying regions {0} estate to {1}. Error: {2}",
                         region.ToString(), estate, e.Message);
                     throw e;
                 }
@@ -71,6 +71,8 @@ namespace EstateManagement.Data.MySQL
         {
             using (MySqlConnection dbcon = new MySqlConnection(m_connectionString))
             {
+                dbcon.Open();
+
                 Dictionary<int, string> resp = new Dictionary<int, string>();
 
                 MySqlCommand cmd =
@@ -90,7 +92,7 @@ namespace EstateManagement.Data.MySQL
                 }
                 catch (Exception e)
                 {
-                    m_log.ErrorFormat("[ESTATEMANAGEMENTMODULE]: MySQL failure querying estates {0}.", e.Message);
+                    m_log.ErrorFormat("[MySQLRegionEstateData]: MySQL failure querying estates {0}.", e.Message);
                     throw e;
                 }
                 dbcon.Close();

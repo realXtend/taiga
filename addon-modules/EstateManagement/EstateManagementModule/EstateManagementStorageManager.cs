@@ -20,11 +20,12 @@ namespace EstateManagementModule
 
         public EstateManagementStorageManager(string dllName, string connectionstring)
         {
-            m_log.Info("[DATASTORE]: Attempting to load " + dllName);
+            m_log.Info("[EstateManagementStorageManager]: Attempting to load " + dllName);
             Assembly pluginAssembly = Assembly.LoadFrom(dllName);
 
             foreach (Type pluginType in pluginAssembly.GetTypes())
             {
+
                 if (pluginType.IsPublic)
                 {
                     Type typeInterface = pluginType.GetInterface("IRegionEstateModification", true);
@@ -37,10 +38,12 @@ namespace EstateManagementModule
 
                         m_regionEstateModificationPlugin = plug;
 
-                        m_log.Info("[DATASTORE]: Added IRegionEstateModification Interface");
+                        m_log.Info("[EstateManagementStorageManager]: Added IRegionEstateModification Interface");
+                        return;
                     }
                 }
             }
+            m_log.Error("[EstateManagementStorageManager]: No IRegionEstateModification module found");
 
         }
     }

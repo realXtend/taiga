@@ -225,7 +225,7 @@ namespace EstateManagementModule
                 eb.BannedHostIPMask = "0.0.0.0";
                 m_scene.RegionInfo.EstateSettings.AddBan(eb);
                 m_scene.RegionInfo.EstateSettings.Save();
-                m_log.InfoFormat("Ban added");
+                m_log.InfoFormat("[ESTATEMANAGER]: Ban added");
             }            
         }
 
@@ -236,7 +236,7 @@ namespace EstateManagementModule
                 UUID uuid = UUID.Parse(cmd[1]);
                 m_scene.RegionInfo.EstateSettings.RemoveBan(uuid);
                 m_scene.RegionInfo.EstateSettings.Save();
-                m_log.InfoFormat("Ban removed");
+                m_log.InfoFormat("[ESTATEMANAGER]: Ban removed");
             }
         }
 
@@ -274,25 +274,25 @@ namespace EstateManagementModule
 
         public void HandleShowEstateAccessList(string module, string[] cmd)
         {
-            m_log.InfoFormat("Region: " + m_scene.RegionInfo.RegionName + " access list");
+            m_log.InfoFormat("[ESTATEMANAGER]: Region: " + m_scene.RegionInfo.RegionName + " access list");
             foreach(UUID uuid in m_scene.RegionInfo.EstateSettings.EstateAccess)
             {
-                m_log.InfoFormat(uuid.ToString());
+                m_log.InfoFormat("[ESTATEMANAGER]: " + uuid.ToString());
             }
         }
         
         public void HandleShowEstateBanList(string module, string[] cmd)
         {
-            m_log.InfoFormat("Region: " + m_scene.RegionInfo.RegionName + " ban list");
+            m_log.InfoFormat("[ESTATEMANAGER]: Region: " + m_scene.RegionInfo.RegionName + " ban list");
             foreach(OpenSim.Framework.EstateBan eb in m_scene.RegionInfo.EstateSettings.EstateBans)
             {
-                m_log.InfoFormat(eb.BannedUserID.ToString());
+                m_log.InfoFormat("[ESTATEMANAGER]: " + eb.BannedUserID.ToString());
             }
         }
         
         public void HandleShowCurrentEstateID(string module, string[] cmd)
         {
-            m_log.InfoFormat(m_scene.RegionInfo.EstateSettings.EstateID.ToString());
+            m_log.InfoFormat("[ESTATEMANAGER]: " + m_scene.RegionInfo.EstateSettings.EstateID.ToString());
         }
 
         public void HandleSetCurrentEstateID(string module, string[] cmd)
@@ -429,6 +429,7 @@ namespace EstateManagementModule
 
         private void HandleEstateHELP(string module, string[] cmd)
         {
+            m_log.InfoFormat("[ESTATEMANAGER]: ");
             m_log.InfoFormat("");
             m_log.InfoFormat("Region Estate commands:");
             m_log.InfoFormat("");

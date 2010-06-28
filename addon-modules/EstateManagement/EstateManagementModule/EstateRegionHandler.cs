@@ -52,7 +52,8 @@ namespace EstateManagementModule
                     try
                     {
                         m_estateStorageManagementDll = ContstructEstateStorageManagementDllName(m_storageDll);
-                        m_EstateManagementStorageManager = new EstateManagementStorageManager(m_storageDll, m_estateConnString);
+                        //m_EstateManagementStorageManager = new EstateManagementStorageManager(m_storageDll, m_estateConnString);
+                        m_EstateManagementStorageManager = new EstateManagementStorageManager(m_estateStorageManagementDll, m_estateConnString);
                         m_storageManager = new StorageManager(m_storageDll, m_storageConnString, m_estateConnString);
                         m_enabled = true;
                     }
@@ -70,7 +71,7 @@ namespace EstateManagementModule
         private string ContstructEstateStorageManagementDllName(string storageDll)
         {
             string[] parts = storageDll.Split('.');
-            return "EstateManagemen.t" + string.Join(".", parts, 1, 3);
+            return "EstateManagement." + string.Join(".", parts, 1, 3);
         }
 
         //public bool SetRegionsEstate(UUID uuid)
