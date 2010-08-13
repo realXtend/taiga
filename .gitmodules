@@ -1,0 +1,3 @@
+[submodule "addon-modules/ModreX"]
+	path = addon-modules/ModreX
+	url = git@github.com:mikkopa/ModreX.git
