@@ -31,6 +31,14 @@ namespace WebDAVSharp.NHibernateStorage
             {
                 ParseConnectionString(connect);
 
+                Type t = Type.GetType ("Mono.Runtime");
+                if (t != null)
+                {
+                    // On Mono you get "method obj_address should be virtual"
+                    // errors from NH unless you do this
+                    configuration.SetProperty(Environment.UseProxyValidator, "false");
+                }
+                
                 //To create sql file uncomment code below and write the name of the file (rewrites database, history will be erased)
                 //SchemaExport exp = new SchemaExport(configuration);
                 //exp.SetOutputFile("db_creation.sql");
