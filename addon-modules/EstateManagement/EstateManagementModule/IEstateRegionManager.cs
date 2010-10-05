@@ -3,7 +3,6 @@ namespace EstateManagementModule
 {
     interface IEstateRegionManager
     {
-        //void HandleEstateCommand(string module, string[] cmd);
         void HandleAddRegionBan(string module, string[] cmd);
         void HandleAddToRegionAccessList(string module, string[] cmd);
         void HandleRemoveFromRegionAccessList(string module, string[] cmd);
