@@ -11,6 +11,7 @@ using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
 //using Caps = OpenSim.Framework.Capabilities.Caps;
 using OpenSim.Framework.Capabilities;
+//using OpenSim.Services.Interfaces;
 
 
 namespace EstateManagementModule
@@ -38,8 +39,13 @@ namespace EstateManagementModule
     }
     #endregion
 
-    public class EstateManagerBase
+    public abstract class EstateManagerBase : EstateManagementModule.IEstateRegionManager
     {
+        protected Scene m_scene;
+        protected List<Scene> m_scenes = new List<Scene>();
+
+
+        public string maincommand;
         protected static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         protected bool CheckArgumentLenght(string[] cmd, int length, string usage)
         {
@@ -49,12 +55,44 @@ namespace EstateManagementModule
                 return false;
             }
             return true;
-        }    
+        }
+
+        #region IEstateRegionManager unimplemented Members
+
+        public abstract void HandleAddRegionBan(string module, string[] cmd);
+
+        public abstract void HandleAddToRegionAccessList(string module, string[] cmd);
+
+        public abstract void HandleRemoveFromRegionAccessList(string module, string[] cmd);
+
+        public abstract void HandleRemoveRegionBan(string module, string[] cmd);
+
+        public abstract void HandleSetCurrentEstateID(string module, string[] cmd);
+
+        public abstract void HandleSetRegionPrivate(string module, string[] cmd);
+
+        public abstract void HandleSetRegionPublic(string module, string[] cmd);
+
+        public abstract void HandleShowEstateBanList(string module, string[] cmd);
+
+        public abstract void HandleShowCurrentEstateID(string module, string[] cmd);
+
+        public abstract void HandleShowEstateAccessList(string module, string[] cmd);
+
+        public abstract void HandleShowEstateManagerList(string module, string[] cmd);
+
+        public abstract void HandleAddEstateManager(string module, string[] cmd);
+
+        public abstract void HandleRemoveEstateManager(string module, string[] cmd);
+
+        #endregion
     }
 
     public class EstateManager : EstateManagerBase, IRegionModule, EstateManagementModule.IEstateRegionManager
     {
-        private Scene m_scene;
+        //private Scene m_scene;
+        //private List<Scene> m_scenes = new List<Scene>();
+
         private IEstateModule m_EstateModule; // TODO needed ??
         private EstateRegionHandler m_EstateRegionHandler = null;
 
@@ -62,24 +100,148 @@ namespace EstateManagementModule
 
         public void Initialise(OpenSim.Region.Framework.Scenes.Scene scene, Nini.Config.IConfigSource source)
         {
+            m_scenes.Add(scene);
             m_scene = scene;
-            m_scene.AddCommand(this, "EstateAddBan", "EstateAddBan <uuid>", "Add user to regions estate banlist", HandleAddRegionBan);
-            m_scene.AddCommand(this, "EstateRemoveBan", "EstateRemoveBan <uuid>", "Remove user from regions estate banlist", HandleRemoveRegionBan);
-            m_scene.AddCommand(this, "EstatePublic", "EstatePublic", "Set region to public mode", HandleSetRegionPublic);
-            m_scene.AddCommand(this, "EstatePrivate", "EstatePrivate", "Set region to private mode", HandleSetRegionPrivate);
-            m_scene.AddCommand(this, "EstateAddAccess", "EstateAddAccess <uuid>", "Add user to regions estate access list", HandleAddToRegionAccessList);
-            m_scene.AddCommand(this, "EstateRemoveAccess", "EstateRemoveAccess <uuid>", "Remove user from regions estate access list", HandleRemoveFromRegionAccessList);
 
-            m_scene.AddCommand(this, "EstateShowAccess", "EstateShowAccess", "Show estate access list", HandleShowEstateAccessList);
-            m_scene.AddCommand(this, "EstateShowBan", "EstateShowBan", "Show estate ban list", HandleShowEstateBanList);
-            m_scene.AddCommand(this, "EstateShowCurrent", "EstateShowCurrent", "Show estate id of currently selected region", HandleShowCurrentEstateID);
+            scene.AddCommand(this, "estate", "estate <action> [<uuid>]", "Type \"estate help\" to view longer help", HandleEstateCommand);
+            scene.AddCommand(this, "estatesim", "estatesim <action> [<uuid>]", "Type \"estatesim help\" to view longer help", HandleEstateSimCommand);
+            
             m_scene.RegisterModuleInterface<IEstateRegionManager>(this);
 
             AddEstateRegionSettingsModificationCap(scene, this);
-
             m_EstateRegionHandler = new EstateRegionHandler(scene.RegionInfo, source);
-            //scene.RegionInfo.EstateSettings
-            //scene.SceneGridService.Re
+        }
+
+
+        public void HandleEstateCommand(string module, string[] cmdparams)
+        {
+
+            if (cmdparams[0] == "estatesim")
+            {
+                //m_scene already set
+            }
+            else if (OpenSim.Framework.Console.MainConsole.Instance.ConsoleScene != null && OpenSim.Framework.Console.MainConsole.Instance.ConsoleScene is Scene)
+            {
+                m_scene = (Scene)OpenSim.Framework.Console.MainConsole.Instance.ConsoleScene;
+                //current scene to m_scene for time when console comman is processed. This is because current scene can change in between of processing
+            }
+            else
+            {
+                if (m_scenes.Count == 1)
+                    m_scene = m_scenes[0];
+                else
+                {
+                    m_log.ErrorFormat("[ESTATEMANAGER]: More than one scene in region. Set current scene with command \"change region <region name>\" \nSee regions with \"show regions\"");
+                    return;
+                }
+            }
+
+            try
+            {
+                bool showHelp = false;
+                if (cmdparams.Length > 1)
+                {
+                    string command = cmdparams[1].ToLower(); //[0] == estate or estatesim
+                    switch (command)
+                    {
+                        case "help":
+                            showHelp = true;
+                            break;
+                        case "addban":
+                            string[] cmd2 = new string[2];
+                            cmd2[0] = "";
+                            cmd2[1] = cmdparams[2];
+                            HandleAddRegionBan("", cmd2);
+                            break;
+                        case "removeban":
+                            string[] cmd3 = new string[2];
+                            cmd3[0] = "";
+                            cmd3[1] = cmdparams[2];
+                            HandleRemoveRegionBan("", cmd3);
+                            break;
+                        case "setpublic":
+                            string[] cmd4 = new string[2];
+                            cmd4[0] = "";
+                            HandleSetRegionPublic("", cmd4);
+                            break;
+                        case "setprivate":
+                            string[] cmd5 = new string[2];
+                            cmd5[0] = "";
+                            HandleSetRegionPrivate("", cmd5);
+                            break;
+                        case "addaccess":
+                            string[] cmd6 = new string[2];
+                            cmd6[0] = "";
+                            cmd6[1] = cmdparams[2];
+                            HandleAddToRegionAccessList("", cmd6);
+                            break;
+                        case "removeaccess":
+                            string[] cmd7 = new string[2];
+                            cmd7[0] = "";
+                            cmd7[1] = cmdparams[2];
+                            HandleRemoveFromRegionAccessList("", cmd7);
+                            break;
+                        case "addmanager":
+                            string[] cmd8 = new string[2];
+                            cmd8[0] = "";
+                            cmd8[1] = cmdparams[2];
+                            HandleAddEstateManager("", cmd8);
+                            break;
+                        case "removemanager":
+                            string[] cmd9 = new string[2];
+                            cmd9[0] = "";
+                            cmd9[1] = cmdparams[2];
+                            HandleRemoveEstateManager("", cmd9);
+                            break;
+                        case "showaccess":
+                            string[] cmd10 = new string[2];
+                            cmd10[0] = "";
+                            HandleShowEstateAccessList("", cmd10);
+                            break;
+                        case "showban":
+                            string[] cmd11 = new string[2];
+                            cmd11[0] = "";
+                            HandleShowEstateBanList("", cmd11);
+                            break;
+                        case "showmanagers":
+                            string[] cmd12 = new string[2];
+                            cmd12[0] = "";
+                            HandleShowEstateManagerList("", cmd12);
+                            break;
+                        default:
+                            showHelp = true;
+                            break;
+                    }
+                }
+                else showHelp = true;
+
+                if (showHelp)
+                {
+                    ShowHelp();
+                }
+            }
+            catch (Exception e)
+            {
+                m_log.ErrorFormat("[ESTATEMANAGER]: Failed to execute estate command. Exception {0} was thrown.", e);
+            }
+
+            m_scene = null;
+        }
+
+        public void HandleEstateSimCommand(string module, string[] cmdparams)
+        {
+            if (cmdparams[1].ToLower() == "help")
+                ShowSimHelp();
+            else
+            {
+                foreach (Scene s in m_scenes)
+                {
+                    Scene temp = m_scene;
+                    m_scene = s;
+                    HandleEstateCommand("", cmdparams);
+                    m_scene = temp;
+                }
+            }
         }
 
         private void AddEstateRegionSettingsModificationCap(Scene scene, EstateManager estateManager)
@@ -205,19 +367,59 @@ namespace EstateManagementModule
 
         public bool IsSharedModule
         {
-            get { return false; }
+            get { return true; }
         }
 
         #endregion
 
+
         #region Command Handlers
 
-        public void HandleAddRegionBan(string module, string[] cmd)
+        public void ShowHelp()
         {
-            if(CheckArgumentLenght(cmd, 2, "Usage: EstateAddBan <uuid>"))
+            m_log.InfoFormat("[ESTATEMANAGER]: ");
+            m_log.InfoFormat("");
+            m_log.InfoFormat("Region Estate commands:");
+            m_log.InfoFormat("");
+            m_log.InfoFormat("estate ban <uuid>" + " Add user to regions estate banlist");
+            m_log.InfoFormat("estate removeban <uuid>" + " Remove user from regions estate banlist");
+            m_log.InfoFormat("estate setpublic" + " Set region to public mode");
+            m_log.InfoFormat("estate setprivate" + " Set region to private mode");
+            m_log.InfoFormat("estate addaccess <uuid>" + " Add user to regions estate access list");
+            m_log.InfoFormat("estate removeaccess <uuid>" + " Remove user from regions estate access list");
+            m_log.InfoFormat("estate addmanager <uuid>" + " Add user to regions estate banlist");
+            m_log.InfoFormat("estate removemanager <uuid>" + " Remove user from regions estate banlist");
+            m_log.InfoFormat("estate showaccess" + " Show estate access list");
+            m_log.InfoFormat("estate showban" + " Show estate ban list");
+            m_log.InfoFormat("estate showmanagers", " Show estate manager list");
+            //m_log.InfoFormat("EstateShowCurrent" + " Show estate id of currently selected region");
+        }
+
+        public void ShowSimHelp() 
+        {
+            m_log.InfoFormat("");
+            m_log.InfoFormat("Sim Estate commands:");
+            m_log.InfoFormat("");
+
+            m_log.InfoFormat("estatesim addban <uuid>" + " Add user to every regions estate banlist in the whole sim");
+            m_log.InfoFormat("estatesim removeban <uuid>" + " Remove user from every regions estate banlist in the whole sim");
+            m_log.InfoFormat("estatesim setpublic" + " Set every region in the sim to public mode");
+            m_log.InfoFormat("estatesim setprivate" + " Set every region in the sim to private mode");
+            m_log.InfoFormat("estatesim addacces <uuid>" + " Add user to every regions estate access list in the whole sim");
+            m_log.InfoFormat("estatesim removeacces <uuid>" + " Remove user from every regions estate access list in the whole sim");
+            m_log.InfoFormat("estatesim addmanager <uuid>" + " Add user to every regions estate manager list in the whole sim");
+            m_log.InfoFormat("estatesim removemanager <uuid>" + " Remove user from every regions estate manager list in the whole sim");
+            m_log.InfoFormat("estatesim showaccess" + " Show estate access lists of the sim");
+            m_log.InfoFormat("estatesim showban" + " Show sim ban lists");
+            m_log.InfoFormat("estatesim showmanagers" + " Show sim manager lists");
+        }
+
+        public override void HandleAddRegionBan(string module, string[] cmd)
+        {
+            if (CheckArgumentLenght(cmd, 2, "Usage: estate ban <uuid>"))
             {
                 string uuidStr = cmd[1];
-                UUID uuid = UUID.Parse(cmd[1]);                
+                UUID uuid = UUID.Parse(cmd[1]);
                 OpenSim.Framework.EstateBan eb = new OpenSim.Framework.EstateBan();
                 eb.BannedUserID = uuid;
                 eb.EstateID = m_scene.RegionInfo.EstateSettings.EstateID;
@@ -226,10 +428,10 @@ namespace EstateManagementModule
                 m_scene.RegionInfo.EstateSettings.AddBan(eb);
                 m_scene.RegionInfo.EstateSettings.Save();
                 m_log.InfoFormat("[ESTATEMANAGER]: Ban added");
-            }            
+            }
         }
 
-        public void HandleRemoveRegionBan(string module, string[] cmd)
+        public override void HandleRemoveRegionBan(string module, string[] cmd)
         {
             if(CheckArgumentLenght(cmd, 2, "Usage: EstateRemoveBan <uuid>"))
             {
@@ -240,19 +442,45 @@ namespace EstateManagementModule
             }
         }
 
-        public void HandleSetRegionPublic(string module, string[] cmd)
+        public override void HandleAddEstateManager(string module, string[] cmd)
+        {
+            if (CheckArgumentLenght(cmd, 2, "Usage: EstateAddManager <uuid>"))
+            {
+                string uuidStr = cmd[1];
+                UUID uuid = UUID.Parse(cmd[1]);
+                m_scene.RegionInfo.EstateSettings.AddEstateManager(uuid);
+                m_scene.RegionInfo.EstateSettings.Save();
+                m_log.InfoFormat("[ESTATEMANAGER]: Manager added");
+            }
+        }
+
+        public override void HandleRemoveEstateManager(string module, string[] cmd)
+        {
+            if (CheckArgumentLenght(cmd, 2, "Usage: EstateRemoveManager <uuid>"))
+            {
+                string uuidStr = cmd[1];
+                UUID uuid = UUID.Parse(cmd[1]);
+                m_scene.RegionInfo.EstateSettings.RemoveEstateManager(uuid);
+                m_scene.RegionInfo.EstateSettings.Save();
+                m_log.InfoFormat("[ESTATEMANAGER]: Manager removed");
+            }
+        }
+        
+        public override void HandleSetRegionPublic(string module, string[] cmd)
         {
             m_scene.RegionInfo.EstateSettings.PublicAccess = true;
             m_scene.RegionInfo.EstateSettings.Save();
+            m_log.InfoFormat("[ESTATEMANAGER]: Region set to public");
         }
 
-        public void HandleSetRegionPrivate(string module, string[] cmd)
+        public override void HandleSetRegionPrivate(string module, string[] cmd)
         {
             m_scene.RegionInfo.EstateSettings.PublicAccess = false;
             m_scene.RegionInfo.EstateSettings.Save();
+            m_log.InfoFormat("[ESTATEMANAGER]: Region set to private");
         }
 
-        public void HandleAddToRegionAccessList(string module, string[] cmd)
+        public override void HandleAddToRegionAccessList(string module, string[] cmd)
         {
             if(CheckArgumentLenght(cmd, 2, "Usage: EstateAddToAccessList <uuid>"))
             {
@@ -262,7 +490,7 @@ namespace EstateManagementModule
             }
         }
         
-        public void HandleRemoveFromRegionAccessList(string module, string[] cmd)
+        public override void HandleRemoveFromRegionAccessList(string module, string[] cmd)
         {
             if(CheckArgumentLenght(cmd, 2, "Usage: EstateRemoveFromAccessList <uuid>"))
             {
@@ -272,7 +500,7 @@ namespace EstateManagementModule
             }
         }
 
-        public void HandleShowEstateAccessList(string module, string[] cmd)
+        public override void HandleShowEstateAccessList(string module, string[] cmd)
         {
             m_log.InfoFormat("[ESTATEMANAGER]: Region: " + m_scene.RegionInfo.RegionName + " access list");
             foreach(UUID uuid in m_scene.RegionInfo.EstateSettings.EstateAccess)
@@ -281,7 +509,7 @@ namespace EstateManagementModule
             }
         }
         
-        public void HandleShowEstateBanList(string module, string[] cmd)
+        public override void HandleShowEstateBanList(string module, string[] cmd)
         {
             m_log.InfoFormat("[ESTATEMANAGER]: Region: " + m_scene.RegionInfo.RegionName + " ban list");
             foreach(OpenSim.Framework.EstateBan eb in m_scene.RegionInfo.EstateSettings.EstateBans)
@@ -289,13 +517,22 @@ namespace EstateManagementModule
                 m_log.InfoFormat("[ESTATEMANAGER]: " + eb.BannedUserID.ToString());
             }
         }
+
+        public override void HandleShowEstateManagerList(string module, string[] cmd)
+        {
+            m_log.InfoFormat("[ESTATEMANAGER]: Region: " + m_scene.RegionInfo.RegionName + " manager list");
+            foreach (UUID uuid in m_scene.RegionInfo.EstateSettings.EstateManagers)
+            {
+                m_log.InfoFormat("[ESTATEMANAGER]: " + uuid.ToString());
+            }
+        }
         
-        public void HandleShowCurrentEstateID(string module, string[] cmd)
+        public override void HandleShowCurrentEstateID(string module, string[] cmd)
         {
             m_log.InfoFormat("[ESTATEMANAGER]: " + m_scene.RegionInfo.EstateSettings.EstateID.ToString());
         }
 
-        public void HandleSetCurrentEstateID(string module, string[] cmd)
+        public override void HandleSetCurrentEstateID(string module, string[] cmd)
         {
             if (CheckArgumentLenght(cmd, 2, "Usage: EstateSetRegionsEstateID <uint>"))
             {
@@ -305,157 +542,7 @@ namespace EstateManagementModule
         }
 
         #endregion
-    }
 
-    public class EstateSimManager : EstateManagerBase, IRegionModule
-    {
-        private List<Scene> m_scenes = new List<Scene>();
-        private List<IEstateRegionManager> m_estateManagers = new List<IEstateRegionManager>();
-
-        #region IRegionModule Members
-
-        public void Initialise(Scene scene, Nini.Config.IConfigSource source)
-        {
-            scene.AddCommand(this, "EstateSimAddBan", "EstateSimAddBan <uuid>", 
-                "Add user to every regions estate banlist in the whole sim", HandleAddSimBan);
-            scene.AddCommand(this, "EstateSimRemoveBan", "EstateSimRemoveBan <uuid>", 
-                "Remove user from every regions estate banlist in the whole sim", HandleRemoveSimBan);
-            scene.AddCommand(this, "EstateSimToPublic", "EstateSimToPublic", 
-                "Set every region in the sim to public mode", HandleSetSimPublic);
-            scene.AddCommand(this, "EstateSimToPrivate", "EstateSimToPrivate", 
-                "Set every region in the sim to private mode", HandleSetSimPrivate);
-            scene.AddCommand(this, "EstateSimAddAccess", "EstateSimAddAccess <uuid>", 
-                "Add user to every regions estate access list in the whole sim", HandleAddToSimAccessList);
-            scene.AddCommand(this, "EstateSimRemoveAccess", "EstateSimRemoveAccess <uuid>", 
-                "Remove user from every regions estate access list in the whole sim", HandleRemoveFromSimAccessList);
-            scene.AddCommand(this, "EstateSimShowAccess", "EstateSimShowAccess", "Show estate access lists of the sim", HandleShowEstateAccessList);
-            scene.AddCommand(this, "EstateSimShowBan", "EstateSimShowBan", "Show sim ban lists", HandleShowSimBanLists);
-
-            scene.AddCommand(this, "EstateHELP", "EstateHELP", "Shows just estate commands help", HandleEstateHELP);
-            m_scenes.Add(scene);
-
-        }
-
-        public void PostInitialise()
-        {
-            foreach (Scene scene in m_scenes)
-            {
-                IEstateRegionManager estateInteraface = scene.RequestModuleInterface<IEstateRegionManager>();
-                m_estateManagers.Add(estateInteraface);
-            }
-        }
-
-        public void Close()
-        {
-        }
-
-        public string Name
-        {
-            get { return "EstateSimManager"; }
-        }
-
-        public bool IsSharedModule
-        {
-            get { return true; }
-        }
-
-        #endregion
-
-        #region Command Handlers
-
-        private void HandleAddSimBan(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleAddRegionBan(module, cmd);
-            }
-        }
-
-        private void HandleRemoveSimBan(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleRemoveRegionBan(module, cmd);
-            }
-        }
-
-        private void HandleSetSimPublic(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleSetRegionPublic(module, cmd);
-            }
-        }
-
-        private void HandleSetSimPrivate(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleSetRegionPrivate(module, cmd);
-            }
-        }
-
-        private void HandleAddToSimAccessList(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleAddToRegionAccessList(module, cmd);
-            }
-        }
-
-        private void HandleRemoveFromSimAccessList(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleRemoveFromRegionAccessList(module, cmd);
-            }            
-        }
-
-        private void HandleShowEstateAccessList(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleShowEstateAccessList(module, cmd);
-            }            
-        }
-
-        private void HandleShowSimBanLists(string module, string[] cmd)
-        {
-            foreach (IEstateRegionManager m in m_estateManagers)
-            {
-                m.HandleShowEstateBanList(module, cmd);
-            }            
-        }
-
-        private void HandleEstateHELP(string module, string[] cmd)
-        {
-            m_log.InfoFormat("[ESTATEMANAGER]: ");
-            m_log.InfoFormat("");
-            m_log.InfoFormat("Region Estate commands:");
-            m_log.InfoFormat("");
-            m_log.InfoFormat("EstateAddBan <uuid>" + "Add user to regions estate banlist");
-            m_log.InfoFormat("EstateRemoveBan <uuid>" + "Remove user from regions estate banlist");
-            m_log.InfoFormat("EstatePublic" + "Set region to public mode");
-            m_log.InfoFormat("EstatePrivate" + "Set region to private mode");
-            m_log.InfoFormat("EstateAddAccess <uuid>" + "Add user to regions estate access list");
-            m_log.InfoFormat("EstateRemoveAccess <uuid>" + "Remove user from regions estate access list");
-            m_log.InfoFormat("EstateShowAccess" + "Show estate access list");
-            m_log.InfoFormat("EstateShowBan" + "Show estate ban list");
-            m_log.InfoFormat("EstateShowCurrent" + "Show estate id of currently selected region");
-            m_log.InfoFormat("");
-            m_log.InfoFormat("Sim Estate commands:");
-            m_log.InfoFormat("");
-            m_log.InfoFormat("EstateSimAddBan <uuid>" + " Add user to every regions estate banlist in the whole sim");
-            m_log.InfoFormat("EstateSimRemoveBan <uuid>" + " Remove user from every regions estate banlist in the whole sim");
-            m_log.InfoFormat("EstateSimToPublic" + " Set every region in the sim to public mode");
-            m_log.InfoFormat("EstateSimToPrivate" + " Set every region in the sim to private mode");
-            m_log.InfoFormat("EstateSimAddAccess <uuid>" + " Add user to every regions estate access list in the whole sim");
-            m_log.InfoFormat("EstateSimRemoveAccess <uuid>" + " Remove user from every regions estate access list in the whole sim");
-            m_log.InfoFormat("EstateSimShowAccess" + " Show estate access lists of the sim");
-            m_log.InfoFormat("EstateSimShowBan" + " Show sim ban lists");
-        }
-
-        #endregion
     }
 
 }

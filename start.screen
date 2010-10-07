@@ -1,0 +1,18 @@
+#!/usr/bin/screen -c
+sessionname taiga-server
+
+screen -t OpenSim.Server 1
+stuff "cd bin; mono OpenSim.Server.exe\015"
+
+sleep 5
+
+screen -t Grid.UserServer 2
+stuff "cd bin; mono OpenSim.Grid.UserServer.exe\015"
+
+sleep 2
+
+screen -t Grid.MessagingServer 3
+stuff "cd bin; mono OpenSim.Grid.MessagingServer.exe\015"
+
+screen -t OpenSim 4
+stuff "cd bin; mono OpenSim.32BitLaunch.exe\015"

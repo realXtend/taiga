@@ -13,5 +13,8 @@ namespace EstateManagementModule
         void HandleShowEstateBanList(string module, string[] cmd);
         void HandleShowCurrentEstateID(string module, string[] cmd);
         void HandleShowEstateAccessList(string module, string[] cmd);
+        void HandleShowEstateManagerList(string module, string[] cmd);
+        void HandleAddEstateManager(string module, string[] cmd);
+        void HandleRemoveEstateManager(string module, string[] cmd);
     }
 }
