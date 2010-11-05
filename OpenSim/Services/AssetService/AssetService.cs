@@ -106,6 +106,8 @@ namespace OpenSim.Services.AssetService
                 return null;
 
             AssetBase asset = m_Database.GetAsset(assetID);
+            if (asset == null)
+                return null;
             return asset.Metadata;
         }
 
