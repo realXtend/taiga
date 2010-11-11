@@ -1,2 +1,2 @@
 print "Initializing voicehannel"
-import voicehannel
+import voicechannel
