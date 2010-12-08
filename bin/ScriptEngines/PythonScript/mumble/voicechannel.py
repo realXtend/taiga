@@ -1,6 +1,6 @@
 import urllib
 import rxactor
-
+import System
 '''
 This script ensures that there is a mumble channel existing for the EC_VoiceChannel component.
 
@@ -13,6 +13,8 @@ SECRET = "qwerty123" # REMEMBER TO CHANGE THIS !!! @see MurmurControl/MurmurCont
 CREATE_BASE_URL = "http://"+SERVER_ADDRESS+"/"+SECRET+"/CREATE_CHANNEL/" #todo get from ini
 REMOVE_BASE_URL = "http://"+SERVER_ADDRESS+"/"+SECRET+"/REMOVE_CHANNEL/" #todo get from ini
 
+POLL_TIMER_MS = 500
+
 class ChannelChecker(rxactor.Actor):
     @staticmethod
     def GetScriptClassName():
@@ -20,23 +22,34 @@ class ChannelChecker(rxactor.Actor):
     
     def EventCreated(self):
         self._cleanup_url = None
-        self.SetTimer(0.5, True) # We poll EC_VoiceChannel for channelid attribute
+        self.SetTimer(0.001 * POLL_TIMER_MS, True) # We poll EC_VoiceChannel for channelid attribute
         self.create_channel()
+        self._destroyed = False
         # @todo replace polling with proper event handlers
         #rex_objects = self.MyWorld.CS.World.EventManager.OnClientConnect += self.clientConnectedHandle
         
     def EventDestroyed(self):
+        self._destroyed = True
+        self.SetTimer(1, False)
         self.cleanup()
                     
     def create_channel(self):
-        ec = self.rexGetECAttributes("EC_VoiceChannel")
-        if ec is not None:
-            cleanup_url = REMOVE_BASE_URL + str( ec["channelid"] )
-            if self._cleanup_url != cleanup_url:
-                url = CREATE_BASE_URL + str( ec["channelid"] )
-                urllib.urlopen(url)
-                self.cleanup()
-                self._cleanup_url = cleanup_url
+        try:
+            if self._destroyed:
+                return
+            if self.MyWorld.CS.World.GetSceneObjectPart(System.Convert.ToUInt32(self.Id)) is None:
+                self.EventDestroyed() # HACK since we do not receive the EventDestroyed event !
+                return
+            ec = self.rexGetECAttributes("EC_VoiceChannel")
+            if ec is not None:
+                cleanup_url = REMOVE_BASE_URL + str( ec["channelid"] )
+                if self._cleanup_url != cleanup_url:
+                    self.cleanup()
+                    self._cleanup_url = cleanup_url
+                    create_url = CREATE_BASE_URL + str( ec["channelid"] )
+                    urllib.urlopen(create_url)
+        except:
+            self.EventDestroyed()
     
     def EventTimer(self):
        self.create_channel()
